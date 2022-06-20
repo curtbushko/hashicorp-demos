@@ -18,7 +18,7 @@ hashicups:
 
 zzz:
 	@echo "Sleeping..."
-	sleep 30
+	sleep 20
 
 deploy-multus:
 	kubectl apply -f multus-daemonset.yml
@@ -30,5 +30,5 @@ podstatus:
 exec:
 	docker exec -it kind-control-plane /bin/bash
 
-all: delete-cluster create-cluster deploy-multus deploy-cni podstatus
+all: delete-cluster create-cluster zzz deploy-multus zzz deploy-cni podstatus
 	

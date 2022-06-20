@@ -59,7 +59,7 @@ spec:
             runAsUser: 0
             runAsNonRoot: false
             privileged: true 
-          command: ["/bin/sh", "-ec", "/bin/consul-k8s install-cni", "-cni-net-dir=/etc/cni/net.d/multus.d", "-multus=true"]
+          command: ["/bin/sh", "-ec", "/bin/consul-k8s install-cni", "-cni-net-dir=/etc/cni/net.d/multus.d", "-multus=true", "-loglevel=debug"]
           volumeMounts:
             - mountPath: /host/opt/cni/bin
               name: cni-bin-dir
