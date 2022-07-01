@@ -1,0 +1,19 @@
+global:
+  tls:
+    enabled: true
+  imageK8S: curtbushko/consul-k8s-control-plane-dev
+server:
+  replicas: 1
+client:
+  enabled: true
+connectInject:
+  enabled: true
+  default: true
+  cni:
+    enabled: true
+ui:
+  enabled: true
+  service:
+    enabled: true
+controller:
+  enabled: true

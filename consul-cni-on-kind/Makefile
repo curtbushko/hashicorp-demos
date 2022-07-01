@@ -1,9 +1,11 @@
-deploy-cni:
-	kubectl create ns consul
-	kubectl apply -f ./deployment -n consul
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni
+CUR_DIR=$(shell pwd)
+
+deploy-consul:
+	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml ./charts/consul
 
 wait-cni:
-	@echo "Waiting for CNI installer to be finished"
+	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] Waiting for CNI installer to be finished"
 	kubectl wait --for=condition=ready --timeout=360s pod -l k8s-app=consul-cni-node -n consul
 	@echo "consul-cni-node is ready!"
 
@@ -18,13 +20,13 @@ calico: deploy-calico wait-calico
 deploy-calico:
 	kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
 	kubectl apply -f ./calico-config.yaml
-	@sleep 20
+	@sleep 30 
 	kubectl -n calico-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
 
 wait-calico:
-	@echo "Waiting for Calico CNI installer to be finished"
+	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] Waiting for Calico CNI installer to be finished"
 	kubectl wait --for=condition=ready --timeout=360s pod -l k8s-app=calico-node -n calico-system 
-	@echo "calico-node is ready!"
+	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] calico-node is ready!"
 
 hashicups:
 	kubectl apply -f ./hashicups/frontend.yaml -n consul
@@ -35,5 +37,13 @@ podstatus:
 
 exec:
 	docker exec -it kind-control-plane /bin/bash
+
+show-host:
+	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] Showing CNI files on in /etc/cni/net.d"
+	@docker exec kind-control-plane /bin/bash -c "ls /etc/cni/net.d"
+	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] Showing CNI files on in /opt/cni/bin"
+	@docker exec kind-control-plane /bin/bash -c "ls /opt/cni/bin"
+
+
 
 all: delete create deploy-calico wait-calico deploy-cni wait-cni podstatus 
