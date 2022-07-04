@@ -1,5 +1,11 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni-helm
+CNI_DIR=$(HOME)/workspace/github.com/hashicorp/cni
 CUR_DIR=$(shell pwd)
+
+build:
+	cd $(CNI_DIR) && make control-plane-dev-docker
+	docker tag consul-k8s-control-plane-dev curtbushko/consul-k8s-control-plane-dev
+	docker push curtbushko/consul-k8s-control-plane-dev
 
 deploy-consul:
 	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml ./charts/consul
