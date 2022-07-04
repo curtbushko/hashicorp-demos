@@ -3,7 +3,7 @@ CNI_DIR=$(HOME)/workspace/github.com/hashicorp/cni
 CUR_DIR=$(shell pwd)
 
 build:
-	cd $(CNI_DIR) && make control-plane-dev-docker
+	cd $(CNI_DIR) && GOARCH=amd64 make control-plane-dev-docker
 	docker tag consul-k8s-control-plane-dev curtbushko/consul-k8s-control-plane-dev
 	docker push curtbushko/consul-k8s-control-plane-dev
 
