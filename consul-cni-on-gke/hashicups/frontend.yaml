@@ -86,10 +86,6 @@ spec:
           items:
           - key: config
             path: default.conf
-      initContainers:
-        - name: kubectl
-          image: bitnami/kubectl:latest 
-          command: ['kubectl', 'annotate', 'pods', '--all', 'proxyid=2000,2001,2002']
       containers:
         - name: frontend
           image: hashicorpdemoapp/frontend:v0.0.3

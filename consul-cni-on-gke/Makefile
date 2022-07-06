@@ -4,15 +4,15 @@ CUR_DIR=$(shell pwd)
 GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
 
 build:
-	cd $(CNI_DIR) && DOCKER_DEFAULT_PLATFORM=linux/amd64 make control-plane-dev-docker
-	docker tag consul-k8s-control-plane-dev:latest curtbushko/consul-k8s-control-plane-dev:$(GIT_REV)
-	docker push curtbushko/consul-k8s-control-plane-dev:$(GIT_REV)
+	cd $(CNI_DIR) && GOARCH=amd64 make control-plane-dev-docker
+	docker tag consul-k8s-control-plane-dev:latest curtbushko/consul-k8s-control-plane-dev:$(GIT_REV)_gke5
+	docker push curtbushko/consul-k8s-control-plane-dev:$(GIT_REV)_gke5
 
 load:
 	kind load docker-image curtbushko/consul-k8s-control-plane-dev:latest ||true
 
 deploy-consul:
-	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=curtbushko/consul-k8s-control-plane-dev:$(GIT_REV) ./charts/consul
+	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=curtbushko/consul-k8s-control-plane-dev:$(GIT_REV)_gke5 --set fullnameOverride=consul ./charts/consul
 
 wait-cni:
 	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] Sleeping while waiting for CNI installer to be finished"
