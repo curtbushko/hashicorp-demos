@@ -25,4 +25,3 @@ hdel:
 	hdel consul
 
 reset:  hdel build deploy-consul wait hashicups podstatus
-
