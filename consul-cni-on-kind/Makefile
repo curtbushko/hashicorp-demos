@@ -5,18 +5,12 @@ GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
 
 build:
 	cd $(CNI_DIR) && GOARCH=amd64 make control-plane-dev-docker
-	docker tag consul-k8s-control-plane-dev:latest curtbushko/consul-k8s-control-plane-dev:$(GIT_REV)
-	docker push curtbushko/consul-k8s-control-plane-dev:$(GIT_REV)
-
 load:
 	kind load docker-image curtbushko/consul-k8s-control-plane-dev:latest ||true
 
 deploy-consul:
-	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set imageK8S=curtbushko/consul-k8s-control-plane-dev:$(GIT_REV) ./charts/consul
-
-wait-cni:
-	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] Sleeping while waiting for CNI installer to be finished"
-	@sleep 60
+	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=curtbushko/consul-k8s-control-plane-dev:latest --set fullnameOverride=consul ./charts/consul
+	#cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set fullnameOverride=consul ./charts/consul
 
 create-cluster: 
 	kind create cluster --config=kind.config
@@ -50,8 +44,8 @@ show-host:
 	@docker exec kind-control-plane /bin/bash -c "ls /opt/cni/bin"
 
 wait:
-	sleep 30
+	sleep 60 
 
-reset: delete-cluster create-cluster build load deploy-calico deploy-consul podstatus
+reset: delete-cluster create-cluster deploy-calico build deploy-consul wait hashicups podstatus
 
 all: delete-cluster create-cluster deploy-calico wait deploy-consul podstatus 
