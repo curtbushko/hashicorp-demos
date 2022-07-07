@@ -13,10 +13,11 @@ create-cluster:
 delete-cluster:
 	kind delete cluster
 
+.PHONY: hashicups
 hashicups:
 	kubectl apply -f ./hashicups/frontend.yaml -n consul
 
-zzz:
+wait:
 	@echo "Sleeping..."
 	sleep 20
 
@@ -30,5 +31,7 @@ podstatus:
 exec:
 	docker exec -it kind-control-plane /bin/bash
 
-all: delete-cluster create-cluster zzz deploy-multus zzz deploy-cni podstatus
+reset: delete-cluster create-cluster wait deploy-multus wait deploy-cni podstatus
+
+all: create-cluster deploy-multus wait deploy-cni podstatus
 	
