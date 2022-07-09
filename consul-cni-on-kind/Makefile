@@ -28,7 +28,7 @@ deploy-calico:
 
 .PHONY: hashicups
 hashicups:
-	kubectl apply -f ./hashicups/frontend.yaml -n consul
+	kubectl apply -f ./hashicups -n consul
 
 podstatus:
 	kubectl ns consul 
