@@ -1,4 +1,4 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni-helm
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni
 CNI_DIR=$(HOME)/workspace/github.com/hashicorp/cni
 CUR_DIR=$(shell pwd)
 GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
