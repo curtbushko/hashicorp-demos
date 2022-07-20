@@ -1,5 +1,5 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni
-CNI_DIR=$(HOME)/workspace/github.com/hashicorp/cni
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni-proxyconfig
+CNI_DIR=$(HOME)/workspace/github.com/hashicorp/cni-proxyconfig
 CUR_DIR=$(shell pwd)
 GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
 
@@ -21,6 +21,7 @@ delete-cluster:
 calico: deploy-calico
 
 deploy-calico:
+	kubectl create namespace calico-system
 	kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
 	kubectl apply -f ./calico-config.yaml
 	@sleep 60
