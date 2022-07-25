@@ -1,16 +1,10 @@
 global:
   tls:
     enabled: false
-  logLevel: debug
 server:
   replicas: 1
-  bootstrapExpect: 1
-  disruptionBudget:
-    enabled: true
-    maxUnavailable: 0
 client:
   enabled: true
-  grpc: true
 connectInject:
   enabled: true
   default: true
@@ -18,7 +12,10 @@ connectInject:
   cni:
     enabled: true
     cniBinDir: /home/kubernetes/bin
+    logLevel: debug
 ui:
   enabled: true
+  service:
+    enabled: true
 controller:
   enabled: true

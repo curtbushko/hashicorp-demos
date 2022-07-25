@@ -1,18 +1,21 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni-helm
-CNI_DIR=$(HOME)/workspace/github.com/hashicorp/cni
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni-proxyconfig
+CNI_DIR=$(HOME)/workspace/github.com/hashicorp/cni-proxyconfig
 CUR_DIR=$(shell pwd)
 GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
+RELEASE=consul
 
 build:
-	cd $(CNI_DIR) && make control-plane-dev-docker
+	cd $(CNI_DIR) && GOARCH=amd64 make control-plane-dev-docker
+load:
+	kind load docker-image curtbushko/consul-k8s-control-plane-dev:latest ||true
 
 deploy-consul:
-	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=curtbushko/consul-k8s-control-plane-dev:latest --set fullnameOverride=consul ./charts/consul
+	cd $(HELM_CHART_DIR) && helm install ${RELEASE} --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=curtbushko/consul-k8s-control-plane-dev:latest --set fullnameOverride=consul ./charts/consul
 	#cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set fullnameOverride=consul ./charts/consul
 
 .PHONY: hashicups
 hashicups:
-	kubectl apply -f ./hashicups/frontend.yaml -n consul
+	kubectl apply -f ./hashicups -n consul
 
 podstatus:
 	kubectl ns consul 
@@ -21,7 +24,12 @@ podstatus:
 wait:
 	sleep 60 
 
-hdel:
-	hdel consul
+delete-consul:
+	echo "Deleteing helm release: ${RELEASE}"
+	helm del --debug ${RELEASE}
+	kubectl delete pvc -l release="${RELEASE}"
+	kubectl get secret | grep --color=auto "${RELEASE}" | grep --color=auto Opaque | grep --color=auto token | awk '{print $1}' | xargs kubectl delete secret
 
-reset:  hdel build deploy-consul wait hashicups podstatus
+all: delete-consul build deploy-consul wait hashicups podstatus
+reset: delete-consul wait deploy-consul wait hashicups podstatus
+

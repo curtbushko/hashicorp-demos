@@ -47,6 +47,6 @@ show-host:
 wait:
 	sleep 60 
 
-reset: delete-cluster create-cluster deploy-calico build deploy-consul wait hashicups podstatus
+all: delete-cluster create-cluster deploy-calico build deploy-consul wait hashicups podstatus
+reset: delete-cluster create-cluster deploy-calico wait deploy-consul wait hashicups podstatus
 
-all: delete-cluster create-cluster deploy-calico wait deploy-consul podstatus 
