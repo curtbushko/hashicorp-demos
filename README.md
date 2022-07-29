@@ -33,11 +33,11 @@ GKE requires that Network Policy Enforcement be enabled for your cluster. This i
 
 1) Turn on Network Policy Enforcement by running one set of the following commands:
 
-## For a new cluster, run the command:
+For a new cluster, run the command:
 
 `gcloud container clusters create CLUSTER_NAME --enable-network-policy`
 
-## For an existing cluster, run the commands:
+For an existing cluster, run the commands:
 
 `gcloud container clusters update CLUSTER_NAME --update-addons=NetworkPolicy=ENABLED`
 and
