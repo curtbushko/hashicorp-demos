@@ -4,7 +4,7 @@ CUR_DIR=$(shell pwd)
 GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
 
 build:
-	cd $(CNI_DIR) && GOARCH=amd64 make control-plane-dev-docker
+	cd $(CNI_DIR) && GOARCH=amd64 make control-plane-dev-docker-multi-arch
 load:
 	kind load docker-image curtbushko/consul-k8s-control-plane-dev:latest ||true
 
@@ -29,7 +29,8 @@ deploy-calico:
 
 .PHONY: hashicups
 hashicups:
-	kubectl apply -f ./hashicups -n consul
+	#kubectl apply -f ./hashicups -n consul
+	kubectl apply -f ./hashicups/frontend.yaml -n consul
 
 podstatus:
 	kubectl ns consul 

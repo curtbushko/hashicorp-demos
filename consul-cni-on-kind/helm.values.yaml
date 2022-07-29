@@ -1,4 +1,5 @@
 global:
+  logLevel: "debug"
   tls:
     enabled: false
 server:
@@ -12,6 +13,8 @@ connectInject:
   cni:
     enabled: true
     logLevel: debug
+dns:
+  enabled: false
 ui:
   enabled: true
   service:
