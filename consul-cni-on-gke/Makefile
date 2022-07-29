@@ -5,7 +5,7 @@ GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
 RELEASE=consul
 
 build:
-	cd $(CNI_DIR) && GOARCH=amd64 make control-plane-dev-docker
+	cd $(CNI_DIR) && GOARCH=amd64 make control-plane-dev-docker-multi-arch
 load:
 	kind load docker-image curtbushko/consul-k8s-control-plane-dev:latest ||true
 
