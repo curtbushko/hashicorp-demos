@@ -9,8 +9,8 @@ There are make targets in `consul-cni-on-kind` that make this easier to run.
 
 ## To Use:
 
-1) In the Makefile, chang0e the values of HELM_CHART_DIR and CNI_DIR to point to your local repository with your CNI branch.
-2) Replace `curtbushko` with the name of your Dockerhub repo.
+1) In the Makefile, change the values of HELM_CHART_DIR and CNI_DIR to point to your local repository with your CNI branch.
+2) Change DOCKERHUB to match your dockerhub account
 3) `make all` will rebuild everything from scratch.
 4) There are make targets for each step of `make all` that you can use individually.
 
@@ -44,7 +44,7 @@ and
 `gcloud container clusters update CLUSTER_NAME --enable-network-policy`
 
 2) In the `consul-cni-on-gke/Makefile` replace the values of HELM_CHART_DIR and CNI_DIR to point to your local repository with your CNI branch.
-3) Replace `curtbushko` with the name of your Dockerhub repo.
+3) Change DOCKERHUB to match your dockerhub account
 4) `make all` will rebuild everything from scratch.
         - delete your consul install 
         - build a multi-arch re-build of the image, push it to dockerub
