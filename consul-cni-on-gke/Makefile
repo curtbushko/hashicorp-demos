@@ -14,9 +14,9 @@ deploy-consul:
 	cd $(HELM_CHART_DIR) && helm install ${RELEASE} --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest --set fullnameOverride=consul ./charts/consul
 	#cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set fullnameOverride=consul ./charts/consul
 
-.PHONY: hashicups
-hashicups:
-	kubectl apply -f ./hashicups -n consul
+deploy-static:
+	kubectl apply -f static-server.yaml -n default
+	kubectl apply -f static-client.yaml -n default
 
 podstatus:
 	kubectl ns consul 
@@ -26,11 +26,17 @@ wait:
 	sleep 60 
 
 delete-consul:
+	kubectl ns consul
 	echo "Deleteing helm release: ${RELEASE}"
 	helm del --debug ${RELEASE}
 	kubectl delete pvc -l release="${RELEASE}"
 	kubectl get secret | grep --color=auto "${RELEASE}" | grep --color=auto Opaque | grep --color=auto token | awk '{print $1}' | xargs kubectl delete secret
 
-all: delete-consul build deploy-consul wait hashicups podstatus
-reset: delete-consul wait deploy-consul wait hashicups podstatus
+delete-static:
+	echo "Deleteing static services"
+	kubectl delete deployment static-server -n default || true
+	kubectl delete deployment static-client -n default || true
+
+all: delete-consul build deploy-consul wait deploy-static podstatus
+reset: delete-consul wait deploy-consul wait deploy-static podstatus
 

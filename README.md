@@ -1,9 +1,9 @@
 # cni-demo
 Makefiles and scripts for using consul-cni plugin in different environments
 
-# Consul CNI on KiND
+# Consul CNI on Kind
 
-Consul CNI on KiND requires that Calico is installed and the KiND pod subnet is set to the same value that Calico is expecting. These settings are located in the consul-cni-on-kind subdirectory.
+Consul CNI on Kind requires that Calico is installed and the Kind pod subnet is set to the same value that Calico is expecting. These settings are located in the consul-cni-on-kind subdirectory.
 
 There are make targets in `consul-cni-on-kind` that make this easier to run.
 
@@ -20,7 +20,7 @@ There are make targets in `consul-cni-on-kind` that make this easier to run.
         - deploy Calico
         - build a multi-arch re-build of the image, push it to dockerub
         - deploy consul 
-        - deploy hashicups
+        - deploy deploy static server and client
         - change your context to the consul namespace and show the status of the pods
 
 NOTE: All config files are located in the directory.
@@ -49,8 +49,25 @@ and
         - delete your consul install 
         - build a multi-arch re-build of the image, push it to dockerub
         - deploy consul 
-        - deploy hashicups
+        - deploy deploy static server and client
         - change your context to the consul namespace and show the status of the pods
 
 5) There are make targets for each step of `make all` that you can use individually.
 
+
+# Consul on Kind with Local Registry
+
+This tends to be a faster local setup of using kind as it does not pull down all the images on every rebuild of the 
+kind cluster.
+ 
+1) In the `consul-cni-on-kind-local-registry/Makefile` replace the values of HELM_CHART_DIR and CNI_DIR to point to
+your local repository with your CNI branch. Leave DOCKERHUB set as localhost:5001
+2) Run `make pull`. This will pull all of the calico images into your local docker image cache.
+3) Run `make all`. This will:
+        - create a Kind cluster with a registry container and configure Kind to use that registry.
+        - load all of the calico images into Kind.
+        - deploy calico.
+        - build the control-plane-dev image, tag it with localhost:5001 and push it to the running docker registry on
+          your machine.
+        - deploy consul.
+        - deploy static server and client.

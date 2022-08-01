@@ -1,0 +1,23 @@
+global:
+  logLevel: "debug"
+  tls:
+    enabled: false
+server:
+  replicas: 1
+client:
+  enabled: true
+connectInject:
+  enabled: true
+  default: true
+  replicas: 1
+  cni:
+    enabled: true
+    logLevel: debug
+dns:
+  enabled: false
+ui:
+  enabled: true
+  service:
+    enabled: true
+controller:
+  enabled: true

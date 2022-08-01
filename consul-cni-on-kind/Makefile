@@ -27,10 +27,9 @@ deploy-calico:
 	@sleep 60
 	kubectl -n calico-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
 
-.PHONY: hashicups
-hashicups:
-	#kubectl apply -f ./hashicups -n consul
-	kubectl apply -f ./hashicups/frontend.yaml -n consul
+deploy-static:
+	kubectl apply -f static-server.yaml
+	kubectl apply -f static-client.yaml
 
 podstatus:
 	kubectl ns consul 
@@ -48,6 +47,6 @@ show-host:
 wait:
 	sleep 60 
 
-all: delete-cluster create-cluster deploy-calico build deploy-consul wait hashicups podstatus
-reset: delete-cluster create-cluster deploy-calico wait deploy-consul wait hashicups podstatus
+all: delete-cluster create-cluster deploy-calico build deploy-consul wait deploy-static podstatus
+reset: delete-cluster create-cluster deploy-calico wait deploy-consul wait deploy-static podstatus
 
