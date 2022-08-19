@@ -13,7 +13,7 @@ deploy-consul:
 	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest --set fullnameOverride=consul ./charts/consul
 
 create-cluster: 
-	kind create cluster --config=kind.config
+	kind create cluster --config=kind.config 
 
 delete-cluster:
 	kind delete cluster
@@ -22,7 +22,7 @@ calico: deploy-calico
 
 deploy-calico:
 	kubectl create namespace calico-system ||true
-	kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
+	kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.0/manifests/tigera-operator.yaml
 	kubectl apply -f ./calico-config.yaml
 	@sleep 60
 	kubectl -n calico-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true

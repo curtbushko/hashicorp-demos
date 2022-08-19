@@ -48,7 +48,7 @@ calico: deploy-calico
 
 deploy-calico:
 	kubectl create namespace calico-system ||true
-	kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
+	kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.0/manifests/tigera-operator.yaml
 	kubectl apply -f ./calico-config.yaml
 	@sleep 60
 	kubectl -n calico-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true

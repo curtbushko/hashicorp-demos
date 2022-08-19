@@ -1,4 +1,5 @@
 global:
+  imageEnvoy: "envoyproxy/envoy:v1.22.4"
   logLevel: "debug"
   tls:
     enabled: false
