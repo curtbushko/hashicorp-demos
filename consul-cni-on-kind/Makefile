@@ -1,6 +1,11 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/cni-proxyconfig
-CNI_DIR=$(HOME)/workspace/github.com/hashicorp/cni-proxyconfig
-DOCKERHUB=curtbushko
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+CNI_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+#DOCKERHUB=curtbushko
+DOCKERHUB=hashicorpdev
+DOCKER_IMAGE=consul-k8s-control-plane:691f10a9
+
+
 CUR_DIR=$(shell pwd)
 GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
 
@@ -10,10 +15,42 @@ load:
 	kind load docker-image $(DOCKERHUB)/consul-k8s-control-plane-dev:latest ||true
 
 deploy-consul:
-	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest --set fullnameOverride=consul ./charts/consul
+	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=$(DOCKERHUB)/$(DOCKER_IMAGE) --set fullnameOverride=consul ./charts/consul
+
+acceptance:
+	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
+		-use-kind \
+		-kubecontext="kind-dc1" \
+		-secondary-kubecontext="kind-dc2" \
+		-enable-transparent-proxy \
+		-enable-cni \
+		-consul-k8s-image $(DOCKERHUB)/$(DOCKER_IMAGE)
+
+acceptance-no-cni:
+	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespace -v -p 1 -timeout 20m \
+		-use-kind \
+		-enable-enterprise \
+		-kubecontext="kind-dc1" \
+		-secondary-kubecontext="kind-dc2" \
+		-enable-transparent-proxy \
+		-consul-k8s-image $(DOCKERHUB)/$(DOCKER_IMAGE)
+
+acceptance-no-cleanup:
+	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespace -v -p 1 -timeout 20m \
+		-use-kind \
+		-enable-enterprise \
+		-kubecontext="kind-dc1" \
+		-secondary-kubecontext="kind-dc2" \
+		-enable-transparent-proxy \
+		-enable-cni \
+		-consul-k8s-image $(DOCKERHUB)/$(DOCKER_IMAGE) \
+		-no-cleanup-on-failure
+
+nsenter:
+	docker exec -it dc1-control-plane /bin/bash -c "export NS=$(ip netns | head -n 1 | awk '{print $1}');nsenter --net=/var/run/netns/${NS} -- iptables -t nat --list"
 
 create-cluster: 
-	kind create cluster --config=kind.config 
+	kind create cluster --config=kind.config --image kindest/node:v1.23.6
 
 delete-cluster:
 	kind delete cluster
