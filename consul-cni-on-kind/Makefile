@@ -1,8 +1,7 @@
 HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
 CNI_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
 ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
-#DOCKERHUB=curtbushko
-DOCKERHUB=hashicorpdev
+DOCKERHUB=curtbushko
 DOCKER_IMAGE=consul-k8s-control-plane:691f10a9
 
 
@@ -23,6 +22,7 @@ acceptance:
 		-kubecontext="kind-dc1" \
 		-secondary-kubecontext="kind-dc2" \
 		-enable-transparent-proxy \
+		-enable-enterprise \
 		-enable-cni \
 		-consul-k8s-image $(DOCKERHUB)/$(DOCKER_IMAGE)
 
