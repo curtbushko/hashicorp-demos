@@ -50,8 +50,12 @@ deploy-static:
 	oc adm policy add-scc-to-group anyuid system:serviceaccounts:static || true
 	oc annotate ns static consu.hashicorp.com/connect-inject=true || true
 	kubectl ns static
-	kubectl apply -f static-server.yaml
-	kubectl apply -f static-client.yaml
+	kubectl apply -f static-server.yaml -n static
+	kubectl apply -f static-client.yaml -n static
+
+delete-static:
+	kubectl delete -f static-server.yaml -n static
+	kubectl delete -f static-client.yaml -n static
 
 deploy-linkerd:
 	kubectl delete ClusterRoleBinding linkerd-cni || true

@@ -1,0 +1,1 @@
+Sept 22, 2022 - Linkerd + CNI + OpenShift does not work in a chained mode. This is because multus ignores chained plugins and only runs either it's delegated plugin (ex OpenShift SDN) and ignores the other plugins in the chain.
