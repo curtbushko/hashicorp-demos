@@ -1,0 +1,27 @@
+global:
+  name: consul
+  datacenter: dc1
+  logLevel: "debug"
+server:
+  replicas: 1
+  bootstrapExpect: 1
+  disruptionBudget:
+    enabled: true
+    maxUnavailable: 0
+client:
+  enabled: true
+  grpc: true
+connectInject:
+  enabled: true
+  default: true
+  replicas: 1
+  cni:
+    enabled: true
+    logLevel: debug
+    multus: true
+dns:
+  enabled: false
+ui:
+  enabled: true
+controller:
+  enabled: true

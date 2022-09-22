@@ -49,13 +49,17 @@ deploy-static:
 	oc new-project static || true
 	oc adm policy add-scc-to-group anyuid system:serviceaccounts:static || true
 	oc annotate ns static consu.hashicorp.com/connect-inject=true || true
+	kubectl ns static
 	kubectl apply -f static-server.yaml
 	kubectl apply -f static-client.yaml
 
 deploy-linkerd:
+	kubectl delete ClusterRoleBinding linkerd-cni || true
+	kubectl delete ClusterRole linkerd-cni || true
 	oc new-project linkerd-cni || true
 	oc annotate ns linkerd-cni linkerd.io/inject=disabled || true
 	oc adm policy add-scc-to-user privileged -z linkerd-cni -n linkerd-cni || true
+	oc adm policy add-scc-to-group anyuid system:serviceaccounts:linkerd-cni || true
 	helm install linkerd2-cni \
           --set installNamespace=false \
           --set destCNIBinDir=/var/lib/cni/bin \

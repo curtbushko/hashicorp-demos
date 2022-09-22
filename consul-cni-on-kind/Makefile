@@ -2,7 +2,7 @@ HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
 CNI_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
 ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
 DOCKERHUB=curtbushko
-DOCKER_IMAGE=consul-k8s-control-plane:691f10a9
+DOCKER_IMAGE=consul-k8s-control-plane-dev:latest
 
 
 CUR_DIR=$(shell pwd)
@@ -65,8 +65,10 @@ deploy-calico:
 	kubectl -n calico-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
 
 deploy-static:
-	kubectl apply -f static-server.yaml
-	kubectl apply -f static-client.yaml
+	kubectl create namespace static || true
+	kubectl ns static || true
+	kubectl apply -f static-server.yaml -n static
+	kubectl apply -f static-client.yaml -n static
 
 podstatus:
 	kubectl ns consul 
