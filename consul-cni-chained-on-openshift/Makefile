@@ -16,6 +16,7 @@ load:
 	oc import-image $(CONSUL_K8S_IMAGE) --from=$(DOCKERHUB)/$(CONSUL_K8S_IMAGE) --confirm
 
 deploy-consul:
+	kubectl ns consul
 	cd $(HELM_CHART_DIR) && helm install consul -n consul -f $(CUR_DIR)/helm.values.yaml \
 		--set global.imageK8S=$(DOCKERHUB)/$(CONSUL_K8S_IMAGE) \
 		--set global.image=$(DOCKERHUB2)/$(CONSUL_IMAGE) \
