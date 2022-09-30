@@ -15,7 +15,6 @@ deploy-consul:
 	oc new-project consul || true
 	kubectl ns consul || true
 	cd $(HELM_CHART_DIR) && helm install consul -n consul -f $(CUR_DIR)/helm.values.yaml \
-		--set global.imageK8S=$(DOCKERHUB)/$(CONSUL_K8S_IMAGE) \
 		--set fullnameOverride=consul \
 		./charts/consul
 
