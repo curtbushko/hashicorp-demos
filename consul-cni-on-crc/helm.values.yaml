@@ -2,7 +2,7 @@ global:
   name: consul
   datacenter: dc1
   image: registry.connect.redhat.com/hashicorp/consul:1.13.2-ubi
-  imageK8S: registry.connect.redhat.com/hashicorp/consul-k8s-control-plane:0.48.0-ubi
+  imageK8S: registry.connect.redhat.com/hashicorp/consul-k8s-control-plane:0.49.0-ubi
   imagePullSecrets:
     - name: 15962412-openshift-pull-secret
   openshift:
