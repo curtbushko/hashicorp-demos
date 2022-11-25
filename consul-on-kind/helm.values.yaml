@@ -8,9 +8,6 @@ connectInject:
   enabled: true
   default: true
   replicas: 1
-  cni:
-    enabled: true
-    logLevel: debug
 dns:
   enabled: false
 ui:

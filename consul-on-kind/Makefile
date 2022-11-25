@@ -23,17 +23,8 @@ acceptance:
 		-secondary-kubecontext="kind-dc2" \
 		-enable-transparent-proxy \
 		-enable-enterprise \
-		-enable-cni \
 		-consul-k8s-image $(DOCKERHUB)/$(DOCKER_IMAGE)
 
-acceptance-no-cni:
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespace -v -p 1 -timeout 20m \
-		-use-kind \
-		-enable-enterprise \
-		-kubecontext="kind-dc1" \
-		-secondary-kubecontext="kind-dc2" \
-		-enable-transparent-proxy \
-		-consul-k8s-image $(DOCKERHUB)/$(DOCKER_IMAGE)
 
 acceptance-no-cleanup:
 	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespace -v -p 1 -timeout 20m \
@@ -54,16 +45,6 @@ create-cluster:
 
 delete-cluster:
 	kind delete cluster
-
-calico: deploy-calico
-
-deploy-calico:
-	kubectl create namespace calico-system ||true
-	kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.0/manifests/tigera-operator.yaml
-	@sleep 10
-	kubectl apply -f ./calico-config.yaml
-	@sleep 60
-	kubectl -n calico-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
 
 deploy-static:
 	kubectl create namespace static || true
@@ -87,6 +68,6 @@ show-host:
 wait:
 	sleep 60 
 
-all: delete-cluster create-cluster deploy-calico build deploy-consul wait deploy-static podstatus
-reset: delete-cluster create-cluster deploy-calico wait deploy-consul wait deploy-static podstatus
+all: delete-cluster create-cluster build deploy-consul wait deploy-static podstatus
+reset: delete-cluster create-cluster wait deploy-consul wait deploy-static podstatus
 
