@@ -49,7 +49,7 @@ acceptance-no-cleanup:
 deploy-static:
 	oc new-project static || true
 	oc adm policy add-scc-to-group anyuid system:serviceaccounts:static || true
-	oc annotate ns static consu.hashicorp.com/connect-inject=true || true
+	oc annotate ns static consul.hashicorp.com/connect-inject=true || true
 	kubectl ns static
 	kubectl apply -f static-server.yaml -n static
 	kubectl apply -f static-client.yaml -n static
