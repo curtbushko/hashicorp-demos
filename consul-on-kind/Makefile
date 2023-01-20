@@ -37,7 +37,7 @@ load:
 	kind load docker-image $(DOCKERHUB)/${CONSUL_DATAPLANE_IMAGE} ||true
 
 deploy-consul:
-	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=$(DOCKERHUB)/$(CONSUL_K8S_IMAGE) --set global.image=${DOCKERHUB}/${CONSUL_IMAGE} --set global.imageConsulDataplane=${DOCKERHUB}/${CONSUL_DATAPLANE_IMAGE} --set fullnameOverride=consul ./charts/consul
+	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.imageK8S=$(DOCKERHUB)/$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=${DOCKERHUB}/${CONSUL_DATAPLANE_IMAGE} --set fullnameOverride=consul ./charts/consul
 
 acceptance:
 	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
@@ -47,7 +47,6 @@ acceptance:
 		-enable-transparent-proxy \
 		-enable-enterprise \
 		-consul-k8s-image $(DOCKERHUB)/$(CONSUL_K8S_IMAGE)
-
 
 acceptance-no-cleanup:
 	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespace -v -p 1 -timeout 20m \
@@ -64,10 +63,10 @@ nsenter:
 	docker exec -it dc1-control-plane /bin/bash -c "export NS=$(ip netns | head -n 1 | awk '{print $1}');nsenter --net=/var/run/netns/${NS} -- iptables -t nat --list"
 
 create-cluster: 
-	kind create cluster --config=kind.config --image kindest/node:v1.23.6
+	kind create cluster --config=kind.config --image kindest/node:v1.23.6 --name=dc1
 
 delete-cluster:
-	kind delete cluster
+	kind delete cluster --name dc1
 
 deploy-static:
 	kubectl create namespace static || true
