@@ -5,13 +5,15 @@ global:
   tls:
     enabled: false
 ingress:
-  enabled: true
+  enabled: false
 server:
   replicas: 1
 connectInject:
   enabled: true
   default: true
   replicas: 1
+  transparentProxy:
+    defaultEnabled: true
 dns:
   enabled: false
 ui:
