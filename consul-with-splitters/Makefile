@@ -1,0 +1,101 @@
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul-enterprise
+CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane
+ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+DOCKERHUB=curtbushko
+CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
+CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
+CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
+CUR_DIR=$(shell pwd)
+
+build: build-k8s build-consul build-consul-dataplane
+
+build-k8s:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Building consul-k8s image ${CONSUL_K8S_IMAGE}"
+	@cd $(K8S_DIR) && GOARCH=amd64 make control-plane-dev-docker-multi-arch
+
+build-consul:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Building consul image ${CONSUL_IMAGE}"
+	@cd $(CONSUL_DIR) && REMOTE_DEV_IMAGE=${CONSUL_IMAGE} GOARCH=amd64 make remote-docker
+
+build-consul-dataplane:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Building consul-dataplane image ${CONSUL_DATAPLANE_IMAGE}"
+	@cd $(CONSUL_DATAPLANE_DIR) && make bin
+	@cd $(CONSUL_DATAPLANE_DIR) && mkdir -p dist/linux/amd64 && GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o dist/linux/amd64/consul-dataplane ./cmd/consul-dataplane
+	@cd $(CONSUL_DATAPLANE_DIR) && mkdir -p dist/linux/amd64 && GOARCH=arm64 GOOS=linux CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o dist/linux/arm64/consul-dataplane ./cmd/consul-dataplane
+	@cd $(CONSUL_DATAPLANE_DIR) && docker buildx build -t "${CONSUL_DATAPLANE_IMAGE}" --platform linux/amd64,linux/arm64 --push .
+
+pull:
+	@docker pull ${CONSUL_K8S_IMAGE}
+	@docker pull ${CONSUL_IMAGE}
+	@docker pull ${CONSUL_DATAPLANE_IMAGE}
+
+load:
+	@kind load docker-image ${CONSUL_K8S_IMAGE} || true
+	@kind load docker-image ${CONSUL_IMAGE} || true
+	@kind load docker-image ${CONSUL_DATAPLANE_IMAGE} || true
+
+deploy-consul:
+	@kubectl create ns consul || true
+	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul
+	@cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.image=$(CONSUL_IMAGE) --set global.imageK8S=$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
+	@kubectl ns consul
+
+acceptance:
+	@cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
+		-use-kind \
+		-kubecontext="kind-dc1" \
+		-secondary-kubecontext="kind-dc2" \
+		-enable-transparent-proxy \
+		-enable-enterprise \
+		-consul-k8s-image $(CONSUL_K8S_IMAGE)
+
+acceptance-no-cleanup:
+	@cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespace -v -p 1 -timeout 20m \
+		-use-kind \
+		-enable-enterprise \
+		-kubecontext="kind-dc1" \
+		-secondary-kubecontext="kind-dc2" \
+		-enable-transparent-proxy \
+		-enable-cni \
+		-consul-k8s-image $(CONSUL_K8S_IMAGE) \
+		-no-cleanup-on-failure
+
+create-cluster: 
+	@kind create cluster --config=kind.config --image kindest/node:v1.23.6 --name=dc1
+
+delete-cluster:
+	@kind delete cluster --name dc1
+
+deploy-static:
+	@kubectl create namespace static || true
+	@kubectl ns static || true
+	@kubectl apply -f static-server.yaml -n static
+	@kubectl apply -f static-client.yaml -n static
+
+podstatus:
+	kubectl ns consul
+	kubectl get pods
+
+show-services:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/services
+
+show-discovery-chain:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/discovery-chain/static-client
+
+show-static-client:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/service/static-client | jq
+
+show-static-client-sidecar-proxy:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/service/static-client-sidecar-proxy | jq
+
+ui:
+	kubectl port-forward service/consul-ui -n consul 8500:80
+
+wait:
+	sleep 60
+
+all: delete-cluster create-cluster build pull load deploy-consul wait deploy-static podstatus
+reset: delete-cluster create-cluster wait deploy-consul wait deploy-static podstatus
+
