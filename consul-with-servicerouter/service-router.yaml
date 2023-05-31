@@ -1,0 +1,15 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceRouter
+metadata:
+  name: product-api
+spec:
+  routes:
+    - match:
+        http:
+          pathPrefix: "/coffees"
+      destination:
+        service: "coffee-service"
+        idleTimeout: 200s

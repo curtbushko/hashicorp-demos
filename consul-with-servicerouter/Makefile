@@ -9,11 +9,14 @@ CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
 CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 CUR_DIR=$(shell pwd)
 
+# -- for fun
+PURPLE='\033[0;35m'       # Purple
+
 build: build-k8s build-consul build-consul-dataplane
 
 build-k8s:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Building consul-k8s image ${CONSUL_K8S_IMAGE}"
-	@cd $(K8S_DIR) && GOARCH=amd64 make control-plane-dev-docker-multi-arch
+	cd $(K8S_DIR) && REMOTE_DEV_IMAGE=${CONSUL_K8S_IMAGE} GOARCH=amd64 make control-plane-dev-docker-multi-arch
 
 build-consul:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Building consul image ${CONSUL_IMAGE}"
@@ -32,51 +35,46 @@ pull:
 	@docker pull ${CONSUL_DATAPLANE_IMAGE}
 
 load:
-	@kind load docker-image ${CONSUL_K8S_IMAGE} || true
-	@kind load docker-image ${CONSUL_IMAGE} || true
-	@kind load docker-image ${CONSUL_DATAPLANE_IMAGE} || true
+	@kind load docker-image -n dc1 ${CONSUL_K8S_IMAGE} || true
+	@kind load docker-image -n dc1 ${CONSUL_IMAGE} || true
+	@kind load docker-image -n dc1  ${CONSUL_DATAPLANE_IMAGE} || true
 
 deploy-consul:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deploying consul"
 	@kubectl create ns consul || true
 	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul
-	@cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.image=$(CONSUL_IMAGE) --set global.imageK8S=$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
+	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.image=$(CONSUL_IMAGE) --set global.imageK8S=$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
 	@kubectl ns consul
 
-acceptance:
-	@cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
-		-use-kind \
-		-kubecontext="kind-dc1" \
-		-secondary-kubecontext="kind-dc2" \
-		-enable-transparent-proxy \
-		-enable-enterprise \
-		-consul-k8s-image $(CONSUL_K8S_IMAGE)
-
-acceptance-no-cleanup:
-	@cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespace -v -p 1 -timeout 20m \
-		-use-kind \
-		-enable-enterprise \
-		-kubecontext="kind-dc1" \
-		-secondary-kubecontext="kind-dc2" \
-		-enable-transparent-proxy \
-		-enable-cni \
-		-consul-k8s-image $(CONSUL_K8S_IMAGE) \
-		-no-cleanup-on-failure
-
 create-cluster: 
-	@kind create cluster --config=kind.config --image kindest/node:v1.23.6 --name=dc1
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Creating Kind cluster dc1"
+	@kind create cluster --config=kind.config --image kindest/node:v1.24.13 --name=dc1
 
 delete-cluster:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting Kind cluster dc1"
 	@kind delete cluster --name dc1
 
-deploy-static:
-	@kubectl create namespace static || true
-	@kubectl ns static || true
-	@kubectl apply -f static-server.yaml -n static
-	@kubectl apply -f static-client.yaml -n static
+deploy-hashicups:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deploying hashicups"
+	@kubectl create ns hashicups || true
+	@kubectl apply -f ./hashicups -n hashicups
 
-podstatus:
-	kubectl ns consul
-	kubectl get pods
+deploy-coffee:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deploying coffee service, view the ui on localhost:8080"
+	@kubectl apply -f ./coffee-service/service.yaml -n hashicups
+	@kubectl apply -f ./coffee-service/v1/deployment.yaml -n hashicups
+
+show-product-api-logs:
+	@kubectl logs -f deploy/product-api product-api -n hashicups
+
+show-cofee-service-logs:
+	@kubectl logs -f deploy/coffee-service coffee-service -n hashicups
+
+make deploy-service-router:
+	@kubectl apply -f ./service-router.yaml
+
+show-injector-logs:
+	@kubectl logs -f -l component=connect-injector -n consul
 
 show-services:
 	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/services
@@ -91,11 +89,16 @@ show-static-client-sidecar-proxy:
 	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/service/static-client-sidecar-proxy | jq
 
 ui:
-	kubectl port-forward service/consul-ui -n consul 8500:80
+	@kubectl port-forward service/consul-ui -n consul 8080:80
+
+frontend-ui:
+	@kubectl port-forward service/frontend -n hashicups 8081:80
+
+
 
 wait:
-	sleep 60
+	sleep 30
 
-all: delete-cluster create-cluster build pull load deploy-consul wait deploy-static podstatus
-reset: delete-cluster create-cluster wait deploy-consul wait deploy-static podstatus
+all: delete-cluster create-cluster build pull load deploy-consul
+demo: delete-cluster create-cluster pull load deploy-consul wait deploy-hashicups deploy-coffee
 

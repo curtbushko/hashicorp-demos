@@ -1,0 +1,14 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceResolver
+metadata:
+  name: coffee-service
+spec:
+  defaultSubset: v1
+  subsets:
+    v1:
+      filter: "Service.Meta.version == v1"
+    v2:
+      filter: "Service.Meta.version == v2"

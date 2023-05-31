@@ -14,8 +14,6 @@ connectInject:
   replicas: 1
   transparentProxy:
     defaultEnabled: true
-dns:
-  enabled: false
 ui:
   enabled: true
   service:
