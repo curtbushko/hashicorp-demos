@@ -78,17 +78,28 @@ podstatus:
 	kubectl ns consul 
 	kubectl get pods 
 
-exec:
-	docker exec -it kind-control-plane /bin/bash
-
-show-host:
-	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] Showing CNI files on in /etc/cni/net.d"
-	@docker exec kind-control-plane /bin/bash -c "ls /etc/cni/net.d"
-	@echo "[$(shell date +'%d/%b/%Y:%H:%M:%S %z')] Showing CNI files on in /opt/cni/bin"
-	@docker exec kind-control-plane /bin/bash -c "ls /opt/cni/bin"
-
 wait:
 	sleep 60 
+
+show-injector-logs:
+	@kubectl logs -f -l component=connect-injector -n consul
+
+show-services:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/services
+
+show-discovery-chain:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/discovery-chain/static-client
+
+show-static-client:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/service/static-client | jq
+
+show-static-client-sidecar-proxy:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/service/static-client-sidecar-proxy | jq
+
+ui:
+	@kubectl port-forward service/consul-ui -n consul 8080:80
+
+
 
 all: delete-cluster create-cluster build pull load deploy-consul wait deploy-static podstatus
 reset: delete-cluster create-cluster wait deploy-consul wait deploy-static podstatus

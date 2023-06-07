@@ -54,6 +54,17 @@ delete-cluster:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting Kind cluster dc1"
 	@kind delete cluster --name dc1
 
+acceptance-no-cleanup:
+	kind load docker-image docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.15-dev --name dc1 || true
+	cd $(ACCEPTANCE_DIR)/acceptance/tests/config-entries && go test -run TestControllerNamespaces -v -p 1 -timeout 20m \
+		-use-kind \
+		-enable-enterprise \
+		-kubecontext="kind-dc1" \
+		-secondary-kubecontext="kind-dc2" \
+		-consul-image="docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.15-dev" \
+		-consul-k8s-image=${CONSUL_K8S_IMAGE} \
+		-no-cleanup-on-failure
+
 deploy-hashicups:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deploying hashicups"
 	@kubectl create ns hashicups || true
