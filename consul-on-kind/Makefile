@@ -8,6 +8,7 @@ CONSUL_K8S_IMAGE=consul-k8s-control-plane-dev:latest
 CONSUL_IMAGE=consul-dev:latest
 CONSUL_DATAPLANE_IMAGE=consul-dataplane:latest
 CUR_DIR=$(shell pwd)
+KIND_VERSION="v1.27.1"
 
 build: build-k8s build-consul build-consul-dataplane
 
@@ -49,7 +50,7 @@ acceptance:
 		-consul-k8s-image $(DOCKERHUB)/$(CONSUL_K8S_IMAGE)
 
 acceptance-no-cleanup:
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespace -v -p 1 -timeout 20m \
+	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-kubecontext="kind-dc1" \
@@ -59,11 +60,8 @@ acceptance-no-cleanup:
 		-consul-k8s-image $(DOCKERHUB)/$(CONSUL_K8S_IMAGE) \
 		-no-cleanup-on-failure
 
-nsenter:
-	docker exec -it dc1-control-plane /bin/bash -c "export NS=$(ip netns | head -n 1 | awk '{print $1}');nsenter --net=/var/run/netns/${NS} -- iptables -t nat --list"
-
 create-cluster: 
-	kind create cluster --config=kind.config --image kindest/node:v1.23.6 --name=dc1
+	kind create cluster --config=kind.config --image kindest/node:${KIND_VERSION} --name=dc1
 
 delete-cluster:
 	kind delete cluster --name dc1
@@ -98,7 +96,6 @@ show-static-client-sidecar-proxy:
 
 ui:
 	@kubectl port-forward service/consul-ui -n consul 8080:80
-
 
 
 all: delete-cluster create-cluster build pull load deploy-consul wait deploy-static podstatus
