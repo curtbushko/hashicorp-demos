@@ -5,7 +5,8 @@ CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane
 ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
 DOCKERHUB=curtbushko
 CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
-CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
+#CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
+CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.16-dev
 CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 
 CUR_DIR=$(shell pwd)
@@ -47,15 +48,15 @@ deploy-consul:
 
 acceptance:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
-	@docker pull docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.15-dev
-	@kind load docker-image docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.15-dev --name dc1 || true
+	@docker pull $(CONSUL_IMAGE)
+	@kind load docker-image $(CONSUL_IMAGE) --name dc1 || true
 	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-kubecontext="kind-dc1" \
 		-secondary-kubecontext="kind-dc2" \
-		-consul-image="docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.15-dev" \
-		-consul-k8s-image=${CONSUL_K8S_IMAGE} \
+		-consul-image=$(CONSUL_IMAGE) \
+		-consul-k8s-image=$(CONSUL_K8S_IMAGE) \
 		-no-cleanup-on-failure
 
 create-cluster: 
