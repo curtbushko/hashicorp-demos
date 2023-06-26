@@ -1,0 +1,118 @@
+---
+# Consul connect requires you to have a service, even if you're connecting a job to the mesh
+apiVersion: v1
+kind: Service
+metadata:
+  # This name will be the service name in Consul.
+  name: mesh-sli-registration-test
+  namespace: service-mesh
+spec:
+  selector:
+    app: mesh-sli-registration-test
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3001
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mesh-sli-registration-test-probe
+  namespace: service-mesh
+spec:
+  # Run every 10 minutes or so
+  # TODO: figure out our desired schedule
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Replace
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          name: mesh-sli-registration-test
+          labels:
+            app: mesh-sli-registration-test
+          annotations:
+            "consul.hashicorp.com/connect-inject": "true"
+            # To kill the dataplane sidecar, we have to set the container uid to dataplane uid.
+            # This setup messes with tproxy establishing a stream with upstream services,
+            # so we will explicitly set upstreams until /quitquitquit envoy gracefully terminates the sidecar
+            "consul.hashicorp.com/transparent-proxy": "false"
+            "consul.hashicorp.com/connect-service-upstreams": "mesh-sli-comms-server:3000"
+        spec:
+          shareProcessNamespace: true
+          serviceAccountName: mesh-sli-registration-test
+          restartPolicy: OnFailure
+          initContainers:
+            # This init container handles pushing a metric to increment the number
+            # of registration attempts this job has made.
+            - name: mesh-sli-registration-pre-test
+              image: harbor.blackrock.com/servicemesh/mesh-sli:1.0.0
+              imagePullPolicy: Always
+              args:
+                - pre-registration
+              env:
+                - name: MESH_SLI_PROM_PUSH_HOST
+                  value: akp-telegraf.akp-telemetry.svc.cluster.local
+                - name: MESH_SLI_PROM_PUSH_PORT
+                  value: "61768"
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 150Mi
+                requests:
+                  cpu: 50m
+                  memory: 150Mi
+          containers:
+            - name: mesh-sli-registration-test
+              image: harbor.blackrock.com/servicemesh/mesh-sli:1.0.0
+              imagePullPolicy: Always
+              # Dataplane doesn't gracefully shutdown after envoy shutdown process
+              # until https://github.com/hashicorp/consul-k8s/issues/1791 gets fixed,
+              # we kill the dataplane container
+              command: [ "/bin/sh", "-c", "/mesh-sli registration-tester && 
+              kill -TERM $(ps -ef | grep '/usr/local/bin/consul-dataplane' | egrep -v 'grep|dumb-init' | awk '{print $1}') "]
+              env:
+                - name: PROBE_TYPE_LABEL
+                  value: "single_port"
+                # Where to push telegraf metrics to
+                - name: MESH_SLI_PROM_PUSH_HOST
+                  value: akp-telegraf.akp-telemetry.svc.cluster.local
+                - name: MESH_SLI_PROM_PUSH_PORT
+                  value: "61768"
+                # Pass in the registered consul namespace to handle clusters
+                # with k8s namespace mirroring both enabled and disabled
+                - name: MESH_SLI_CONSUL_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: "metadata.annotations['consul.hashicorp.com/consul-namespace']"
+                # Pass in the pod name/namespace so we can hit up the K8s API
+                # to get consul-connect-inject-init timing metrics
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                # To shutdown the data plane correctly, otherwise the dataplane will restart
+                - name: MESH_SLI_ENVOY_HOOK_ATTEMPTS
+                  value: "0"
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                # to send SIGTERM to shutdown dataplane sidecar
+                capabilities:
+                  drop:
+                    - all 
+                  add: ["KILL"]
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 150Mi
+                requests:
+                  cpu: 50m
+                  memory: 150Mi

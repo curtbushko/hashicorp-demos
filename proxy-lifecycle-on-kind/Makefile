@@ -14,7 +14,7 @@ CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 CUR_DIR=$(shell pwd)
 KIND_VERSION="v1.27.1"
 
-build: build-k8s build-consul build-consul-dataplane
+build: build-k8s build-dataplane
 
 build-k8s:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Building consul-k8s image ${CONSUL_K8S_IMAGE}"
@@ -55,15 +55,14 @@ acceptance-tproxy:
 	@kind load docker-image $(CONSUL_K8S_IMAGE) --name dc1 || true
 	@kind load docker-image $(CONSUL_DATAPLANE_IMAGE) --name dc1 || true
 	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/api-gateway && go test -run TestAPIGateway_ExternalServers -v -p 1 -timeout 20m \
+	cd $(ACCEPTANCE_DIR)/acceptance/tests/api-gateway && go test -run TestConnectInject_ProxyLifecycle -v -p 1 -timeout 60m \
 		-use-kind \
 		-enable-enterprise \
-		-enable-multi-cluster \
 		-enable-transparent-proxy \
 		-kubecontext="kind-dc1" \
-		-secondary-kubecontext="kind-dc2" \
 		-consul-image=$(CONSUL_IMAGE) \
 		-consul-k8s-image=$(CONSUL_K8S_IMAGE) \
+		-consul-dataplane-image=$(CONSUL_DATAPLANE_IMAGE) \
 		-no-cleanup-on-failure
 
 acceptance:
@@ -72,12 +71,10 @@ acceptance:
 	@kind load docker-image $(CONSUL_IMAGE) --name dc1 || true
 	@kind load docker-image $(CONSUL_K8S_IMAGE) --name dc1 || true
 	@kind load docker-image $(CONSUL_DATAPLANE_IMAGE) --name dc1 || true
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
+	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject_ProxyLifecycle -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
-		-enable-multi-cluster \
 		-kubecontext="kind-dc1" \
-		-secondary-kubecontext="kind-dc2" \
 		-consul-image=$(CONSUL_IMAGE) \
 		-consul-k8s-image=$(CONSUL_K8S_IMAGE) \
 		-consul-dataplane-image=$(CONSUL_DATAPLANE_IMAGE) \
@@ -97,6 +94,14 @@ deploy-static:
 	kubectl apply -f static-server.yaml -n static
 	kubectl apply -f static-client.yaml -n static
 
+create-job:
+	kubectl create ns service-mesh || true
+	kubectl apply -f job.yaml
+	kubectl ns service-mesh || true
+
+delete-job:
+	kubectl apply -f job.yaml
+
 podstatus:
 	kubectl ns consul 
 	kubectl get pods 
@@ -110,19 +115,10 @@ show-injector-logs:
 show-services:
 	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/services
 
-show-discovery-chain:
-	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/discovery-chain/static-client
-
-show-static-client:
-	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/service/static-client | jq
-
-show-static-client-sidecar-proxy:
-	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/service/static-client-sidecar-proxy | jq
-
 ui:
 	@kubectl port-forward service/consul-ui -n consul 8080:80
 
 
-all: delete-cluster create-cluster build pull load deploy-consul wait deploy-static podstatus
-reset: delete-cluster create-cluster status
+all: delete-cluster create-cluster build pull load acceptance
+reset: delete-cluster create-cluster
 

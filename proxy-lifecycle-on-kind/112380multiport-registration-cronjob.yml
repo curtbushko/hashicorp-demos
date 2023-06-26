@@ -1,0 +1,139 @@
+---
+# Consul connect requires you to have a service, even if you're connecting a job to the mesh
+apiVersion: v1
+kind: Service
+metadata:
+  # This name will be the service name in Consul.
+  name: mesh-sli-multiport-reg-test
+  namespace: service-mesh
+spec:
+  selector:
+    app: mesh-sli-mp-reg-test-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3030 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # This name will be the service name in Consul.
+  name: mesh-sli-multiport-reg-test-admin
+  namespace: service-mesh
+spec:
+  selector:
+    app: mesh-sli-mp-reg-test-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3040 
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mesh-sli-multiport-registration-test-probe
+  namespace: service-mesh
+spec:
+  # Run every 10 minutes or so
+  # TODO: figure out our desired schedule
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Replace
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          # There is a 63 character cap for name
+          name: mesh-sli-mp-reg-test-app
+          labels:
+            app: mesh-sli-mp-reg-test-app
+          annotations:
+            "consul.hashicorp.com/connect-inject": "true"
+            "consul.hashicorp.com/connect-service-upstreams": "mesh-sli-comms-server:3000"
+            # t proxy needs to be disabled for multiport to work
+            "consul.hashicorp.com/transparent-proxy": "false"
+            
+            # Multiport service 
+            "consul.hashicorp.com/connect-service": mesh-sli-multiport-reg-test-admin,mesh-sli-multiport-reg-test
+            "consul.hashicorp.com/connect-service-port": 3040,3030
+            # Deactivate to make multiport work
+            "consul.hashicorp.com/enable-metrics": "false"
+            "consul.hashicorp.com/enable-metrics-merging": "false"
+        spec: #same object as deployment pod spec
+          shareProcessNamespace: true
+          serviceAccountName: mesh-sli-multiport-reg-test-admin
+          restartPolicy: OnFailure
+          initContainers:
+            # This init container handles pushing a metric to increment the number
+            # of registration attempts this job has made.
+            - name: mesh-sli-multiport-registration-pre-test
+              image: harbor.blackrock.com/servicemesh/mesh-sli:1.0.0
+              imagePullPolicy: IfNotPresent
+              args:
+                - pre-registration
+              env: 
+                - name: MESH_SLI_PROM_PUSH_HOST
+                  value: akp-telegraf.akp-telemetry.svc.cluster.local
+                - name: MESH_SLI_PROM_PUSH_PORT
+                  value: "61768"
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 150Mi
+                requests:
+                  cpu: 50m
+                  memory: 150Mi
+          containers: 
+            - name: mesh-sli-multiport-registration-test
+              image: harbor.blackrock.com/servicemesh/mesh-sli:1.0.0
+              imagePullPolicy: IfNotPresent
+              # Dataplane doesn't gracefully shutdown after envoy shutdown process, we kill the dataplane container
+              command: [ "/bin/sh", "-c", "/mesh-sli registration-tester && 
+              kill -TERM $(ps -ef | grep '/usr/local/bin/consul-dataplane' | egrep -v 'grep|dumb-init' | awk '{print $1}') "]
+              env:
+                - name: PROBE_TYPE_LABEL
+                  value: "multi_port"
+                # skips the envoy tear down process, logs will be misleading
+                - name: MESH_SLI_ENVOY_HOOK_ATTEMPTS
+                  value: "0"
+                # Where to push telegraf metrics to
+                - name: MESH_SLI_PROM_PUSH_HOST
+                  value: akp-telegraf.akp-telemetry.svc.cluster.local
+                - name: MESH_SLI_PROM_PUSH_PORT
+                  value: "61768"
+                # Pass in the registered consul namespace to handle clusters
+                # with k8s namespace mirroring both enabled and disabled
+                - name: MESH_SLI_CONSUL_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: "metadata.annotations['consul.hashicorp.com/consul-namespace']"
+                # Pass in the pod name/namespace so we can hit up the K8s API
+                # to get consul-connect-inject-init timing metrics
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                # Specifying multiple connect-injects will suffix the service name to the container name
+                - name: MESH_SLI_CONNECT_INIT_CONTAINER_NAMES
+                  value: consul-connect-inject-init-mesh-sli-multiport-reg-test-admin,consul-connect-inject-init-mesh-sli-multiport-reg-test
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                # to send SIGTERM to shutdown dataplane sidecar
+                capabilities:
+                  drop:
+                    - all 
+                  add: ["KILL"]
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 150Mi
+                requests:
+                  cpu: 50m
+                  memory: 150Mi
