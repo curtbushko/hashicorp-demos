@@ -88,26 +88,26 @@ delete-cluster:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting Kind cluster dc1"
 	@kind delete cluster --name dc1
 
-deploy-static:
-	kubectl create namespace static || true
-	kubectl ns static || true
-	kubectl apply -f static-server.yaml -n static
-	kubectl apply -f static-client.yaml -n static
-
 create-job:
-	kubectl create ns service-mesh || true
-	kubectl apply -f job.yaml
-	kubectl ns service-mesh || true
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Creating test job"
+	@kubectl create ns service-mesh || true
+	@kubectl apply -f job.yaml
+	@kubectl ns service-mesh || true
 
 delete-job:
-	kubectl apply -f job.yaml
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting test job"
+	@kubectl delete -f job.yaml
+
+show-job-init-logs:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Showing test job connect inject logs"
+	@kubectl logs -f job.batch/test-job -c consul-connect-inject-init -n service-mesh
 
 podstatus:
-	kubectl ns consul 
-	kubectl get pods 
+	kubectl ns consul
+	kubectl get pods
 
 wait:
-	sleep 60 
+	sleep 60
 
 show-injector-logs:
 	@kubectl logs -f -l component=connect-injector -n consul
