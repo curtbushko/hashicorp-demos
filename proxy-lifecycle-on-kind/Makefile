@@ -9,7 +9,7 @@ CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
 CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.16-dev
 CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
-#CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.2-dev
+#CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
 
 CUR_DIR=$(shell pwd)
 KIND_VERSION="v1.27.1"
@@ -90,9 +90,8 @@ delete-cluster:
 
 create-job:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Creating test job"
-	@kubectl create ns service-mesh || true
 	@kubectl apply -f job.yaml
-	@kubectl ns service-mesh || true
+	@kubectl ns default
 
 delete-job:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting test job"

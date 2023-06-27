@@ -1,41 +1,52 @@
 ---
-# Consul connect requires you to have a service, even if you're connecting a job to the mesh
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: test-job
+  namespace: default
+---
 apiVersion: v1
 kind: Service
 metadata:
-  # This name will be the service name in Consul.
   name: test-job
-  namespace: service-mesh
+  namespace: default
 spec:
   selector:
     app: test-job
   ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 3001
+    - port: 80
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
    name: test-job
-   namespace: service-mesh
+   namespace: default
    labels:
      app: test-job
-   annotations:
-     "consul.hashicorp.com/connect-inject": "true"
-     "consul.hashicorp.com/transparent-proxy": "false"
 spec:
   template:
+    metadata:
+      annotations:
+        "consul.hashicorp.com/connect-inject": "true"
+        "consul.hashicorp.com/transparent-proxy": "false"
+        "consul.hashicorp.com/sidecar-proxy-lifecycle-shutdown-grace-period-seconds": "5"
+      labels:
+        app: test-job
     spec:
       containers:
       - name: test-job
-        image: alpine:latest
+        image: alpine/curl:3.14
+        ports:
+        - containerPort: 80
         command:
-          - /bin/bash
+          - /bin/sh
           - -c
           - |
             echo "Started test job"
             sleep 10
-            echo "Started test job"
+            echo "Killing proxy"
+            curl --max-time 2 -s -f -XPOST http://127.0.0.1:20600/graceful_shutdown
+            sleep 10
+            echo "Ended test job"
+      serviceAccountName: test-job
       restartPolicy: Never
-
