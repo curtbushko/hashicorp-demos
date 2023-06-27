@@ -14,6 +14,12 @@ CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 CUR_DIR=$(shell pwd)
 KIND_VERSION="v1.27.1"
 
+versions:
+	echo "Consul image: ${CONSUL_IMAGE}"
+	echo "Consul-k8s image: ${CONSUL_K8S_IMAGE}"
+	echo "Consul dataplane image: ${CONSUL_DATAPLANE_IMAGE}"
+
+
 build: build-k8s build-consul build-consul-dataplane
 
 build-k8s:
