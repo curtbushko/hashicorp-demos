@@ -77,5 +77,5 @@ ui:
 	@kubectl port-forward service/consul-ui -n consul 8080:80
 
 
-all: delete-cluster create-cluster build acceptance
+all: delete-cluster create-cluster build pull load acceptance
 
