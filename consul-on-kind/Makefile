@@ -4,12 +4,12 @@ CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane
 ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
 DOCKERHUB=curtbushko
-#CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.2.0-dev
+CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
 CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
-CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.16-dev
-CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
-#CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.2-dev
+CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
+#CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
+CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
 
 CUR_DIR=$(shell pwd)
 KIND_VERSION="v1.27.1"
@@ -18,7 +18,6 @@ versions:
 	echo "Consul image: ${CONSUL_IMAGE}"
 	echo "Consul-k8s image: ${CONSUL_K8S_IMAGE}"
 	echo "Consul dataplane image: ${CONSUL_DATAPLANE_IMAGE}"
-
 
 build: build-k8s build-consul build-consul-dataplane
 
@@ -78,7 +77,7 @@ acceptance:
 	@kind load docker-image $(CONSUL_IMAGE) --name dc1 || true
 	@kind load docker-image $(CONSUL_K8S_IMAGE) --name dc1 || true
 	@kind load docker-image $(CONSUL_DATAPLANE_IMAGE) --name dc1 || true
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
+	cd $(ACCEPTANCE_DIR)/acceptance/tests/api-gateway && go test -run TestAPIGateway_ExternalServers -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-enable-multi-cluster \
@@ -89,13 +88,25 @@ acceptance:
 		-consul-dataplane-image=$(CONSUL_DATAPLANE_IMAGE) \
 		-no-cleanup-on-failure
 
-create-cluster: 
+create-cluster:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Creating Kind cluster dc1"
 	@kind create cluster --config=kind.config --image kindest/node:${KIND_VERSION} --name=dc1
+
+create-clusters:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Creating Kind cluster dc1"
+	@kind create cluster --config=kind.config --image kindest/node:${KIND_VERSION} --name=dc1
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Creating Kind cluster dc2"
+	@kind create cluster --config=kind.config --image kindest/node:${KIND_VERSION} --name=dc2
 
 delete-cluster:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting Kind cluster dc1"
 	@kind delete cluster --name dc1
+
+delete-clusters:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting Kind cluster dc1"
+	@kind delete cluster --name dc1
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting Kind cluster dc2"
+	@kind delete cluster --name dc2
 
 deploy-static:
 	kubectl create namespace static || true
@@ -131,4 +142,4 @@ ui:
 
 all: delete-cluster create-cluster build pull load deploy-consul wait deploy-static podstatus
 reset: delete-cluster create-cluster status
-
+acc: delete-clusters create-clusters pull load acceptance
