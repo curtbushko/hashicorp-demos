@@ -1,11 +1,10 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
-K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/curtbushko/NET-5154/acceptance-vault-pending-running
+K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/curtbushko/NET-5154/acceptance-vault-pending-running
 CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane
-ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
 DOCKERHUB=curtbushko
 CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
-CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
+#CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
 CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
 #CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
@@ -45,6 +44,9 @@ load:
 	@kind load docker-image -n dc1 ${CONSUL_K8S_IMAGE} || true
 	@kind load docker-image -n dc1 ${CONSUL_IMAGE} || true
 	@kind load docker-image -n dc1  ${CONSUL_DATAPLANE_IMAGE} || true
+	@kind load docker-image -n dc2 ${CONSUL_K8S_IMAGE} || true
+	@kind load docker-image -n dc2 ${CONSUL_IMAGE} || true
+	@kind load docker-image -n dc2  ${CONSUL_DATAPLANE_IMAGE} || true
 
 deploy-consul:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deploying consul"
@@ -53,36 +55,26 @@ deploy-consul:
 	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.image=$(CONSUL_IMAGE) --set global.imageK8S=$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
 	@kubectl ns consul
 
-acceptance-tproxy:
+acceptance-tproxy: pull load
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
-	@docker pull $(CONSUL_IMAGE)
-	@kind load docker-image $(CONSUL_IMAGE) --name dc1 || true
-	@kind load docker-image $(CONSUL_K8S_IMAGE) --name dc1 || true
-	@kind load docker-image $(CONSUL_DATAPLANE_IMAGE) --name dc1 || true
-	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/api-gateway && go test -run TestAPIGateway_ExternalServers -v -p 1 -timeout 20m \
+	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n default
+	cd $(K8S_DIR)/acceptance/tests/api-gateway && go test -run TestAPIGateway_ExternalServers -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-enable-multi-cluster \
 		-enable-transparent-proxy \
-		-kubecontext="kind-dc1" \
-		-secondary-kubecontext="kind-dc2" \
+		-kube-contexts="kind-dc1,kind-dc2" \
 		-consul-image=$(CONSUL_IMAGE) \
 		-consul-k8s-image=$(CONSUL_K8S_IMAGE) \
 		-no-cleanup-on-failure
 
-acceptance:
+acceptance: pull load
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
-	@docker pull $(CONSUL_IMAGE)
-	@kind load docker-image $(CONSUL_IMAGE) --name dc1 || true
-	@kind load docker-image $(CONSUL_K8S_IMAGE) --name dc1 || true
-	@kind load docker-image $(CONSUL_DATAPLANE_IMAGE) --name dc1 || true
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/api-gateway && go test -run TestAPIGateway_ExternalServers -v -p 1 -timeout 20m \
+	cd $(K8S_DIR)/acceptance/tests/vault && go test -run TestVault_VaultNamespace -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-enable-multi-cluster \
-		-kubecontext="kind-dc1" \
-		-secondary-kubecontext="kind-dc2" \
+		-kube-contexts="kind-dc1,kind-dc2" \
 		-consul-image=$(CONSUL_IMAGE) \
 		-consul-k8s-image=$(CONSUL_K8S_IMAGE) \
 		-consul-dataplane-image=$(CONSUL_DATAPLANE_IMAGE)
