@@ -1,8 +1,7 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
-K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
-CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul
-CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane
-ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+WORKTREE=main
+K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(WORKTREE)
+CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(WORKTREE)
+CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(WORKTREE)
 DOCKERHUB=curtbushko
 CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
 #CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
@@ -52,14 +51,14 @@ load:
 deploy-consul:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deploying consul"
 	@kubectl create ns consul || true
-	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul
-	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.image=$(CONSUL_IMAGE) --set global.imageK8S=$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
+	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul || true
+	cd $(K8S_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.image=$(CONSUL_IMAGE) --set global.imageK8S=$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
 	@kubectl ns consul
 
 acceptance-tproxy: pull load
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
 	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n default
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/api-gateway && go test -run TestAPIGateway_ExternalServers -v -p 1 -timeout 20m \
+	cd $(K8S_DIR)/acceptance/tests/api-gateway && go test -run TestAPIGateway_ExternalServers -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-enable-multi-cluster \
@@ -71,7 +70,7 @@ acceptance-tproxy: pull load
 
 acceptance: pull load
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/partitions && go test -run TestPartitions_Gateway -v -p 1 -timeout 20m \
+	cd $(K8S_DIR)/acceptance/tests/partitions && go test -run TestPartitions_Gateway -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-enable-multi-cluster \
