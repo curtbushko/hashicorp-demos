@@ -14,13 +14,22 @@ build:
 integration-setup:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running test-compat-integ-setup in $(CONSUL_DIR)"
 	@cd $(CONSUL_DIR) && make test-compat-integ-setup
+	@docker tag consul-envoy:target-version consul-envoy:latest-version
 
 .PHONY: integration
 integration:
+	@echo "-----------------------------------------------------------------------------------------------------"
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running integration tests for $(INTEGRATION_TEST_DIR)"
+	@echo "-----------------------------------------------------------------------------------------------------"
 	@cd $(CONSUL_DIR)/test/integration/consul-container/test/$(INTEGRATION_TEST_DIR) && \
 		go test -run TestTerminatingGatewayBasic -v -timeout=2m  \
 		--target-image $(CONSUL_COMPAT_TEST_IMAGE) \
 		--target-version local \
 		--latest-image $(CONSUL_COMPAT_TEST_IMAGE) \
 		--latest-version latest
+
+.PHONY: bats
+bats:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running bats test in $(CONSUL_DIR)"
+	@cd $(CONSUL_DIR) && \
+	make test-envoy-integ GO_TEST_FLAGS="-run TestEnvoy/case-terminating-gateway-simple"

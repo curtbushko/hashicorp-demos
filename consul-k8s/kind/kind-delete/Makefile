@@ -1,4 +1,4 @@
-WORKTREE=main
+WORKTREE=reviews/jm/kind-delete
 K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(WORKTREE)
 CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(WORKTREE)
@@ -70,7 +70,7 @@ acceptance-tproxy: pull load
 
 acceptance: pull load
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
-	cd $(K8S_DIR)/acceptance/tests/partitions && go test -run TestPartitions_Gateway -v -p 1 -timeout 20m \
+	cd $(K8S_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespaces -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-enable-multi-cluster \
