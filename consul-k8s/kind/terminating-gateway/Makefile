@@ -1,12 +1,12 @@
-WORKTREE=reviews/jm/kind-delete
+WORKTREE=main
 K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(WORKTREE)
-CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(WORKTREE)
+CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul-enterprise/$(WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(WORKTREE)
 DOCKERHUB=curtbushko
 #CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
 CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
-CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
+CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.17-dev
 #CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
 
@@ -57,7 +57,7 @@ deploy-consul:
 
 acceptance-tproxy: pull load
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
-	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n default || true
+	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n default
 	cd $(K8S_DIR)/acceptance/tests/api-gateway && go test -run TestAPIGateway_ExternalServers -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
@@ -71,14 +71,14 @@ acceptance-tproxy: pull load
 acceptance: pull load
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
 	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n default || true
-	cd $(K8S_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespaces -v -p 1 -timeout 20m \
+	cd $(K8S_DIR)/acceptance/tests/terminating-gateway && go test -run TestTerminatingGateway -v -p 1 -timeout 20m \
 		-use-kind \
 		-enable-enterprise \
 		-enable-multi-cluster \
 		-kube-contexts="kind-dc1,kind-dc2" \
 		-consul-image=$(CONSUL_IMAGE) \
 		-consul-k8s-image=$(CONSUL_K8S_IMAGE) \
-		-consul-dataplane-image=$(CONSUL_DATAPLANE_IMAGE)
+		-no-cleanup-on-failure
 
 create-cluster:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Creating Kind cluster dc1"

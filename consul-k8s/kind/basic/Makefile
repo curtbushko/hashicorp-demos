@@ -1,4 +1,4 @@
-WORKTREE=main
+WORKTREE='curtbushko/reduce-gateway-noise'
 K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(WORKTREE)
 CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(WORKTREE)
