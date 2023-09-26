@@ -1,3 +1,8 @@
+# WARNING: ! THIS IS THE VERSION YOU WANT TO CERTIFY AGAINST!
+CHART_VERSION="1.2"
+
+# WARNING: ! THIS IS THE VERSION YOU WANT TO CERTIFY AGAINST!
+TEMPLATE_FILE=consul-k8s-gke-autopilot.yaml
 K8S_WORKTREE=curtbushko/gke-autopilot-acceptance
 CONSUL_WORKTREE=main
 CONSUL_DATAPLANE_WORKTREE=main
@@ -15,9 +20,13 @@ CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 CUR_DIR=$(shell pwd)
 KIND_VERSION="v1.27.1"
 
-
+# GKE specific things
 context:
-	gcloud container clusters get-credentials autopilot-cluster-2 --region us-central1 --project hc-36a856f5b92c4e61b1b951faa58
+	gcloud container clusters get-credentials autopilot-cluster-2 --region us-central1 --project ${GCP_CONSUL_K8S_DEV_PROJECT}
+
+# The cluster needs to be updated to allow NET_ADMIN to work
+allow-net-admin:
+	gcloud container clusters update autopilot-cluster-2 --region us-central1 --workload-policies=allow-net-admin
 
 versions:
 	echo "Consul image: ${CONSUL_IMAGE}"
@@ -46,6 +55,9 @@ gke-clean:
 	kubectl delete crd gatewayclasses.gateway.networking.k8s.io
 	kubectl delete gateways.gateway.networking.k8s.io
 
+secret:
+	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul || true
+
 deploy-consul:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deploying consul"
 	@kubectl create ns consul || true
@@ -53,10 +65,11 @@ deploy-consul:
 	cd $(K8S_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
 	@kubectl ns consul
 
-helm-template:
-	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Generating template"
-	cd $(K8S_DIR) && helm template consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul > $(CUR_DIR)/consul_k8s_gke_autopilot.yaml
-
+generate-helm-template:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Generating helm template from chart ${CHART_VERSION}"
+	@helm repo add hashicorp https://helm.releases.hashicorp.com && helm repo update && helm search repo hashicorp --version ${CHART_VERSION}
+	helm template consul hashicorp/consul -f $(CUR_DIR)/helm.values.yaml --version ${CHART_VERSION} --create-namespace --namespace consul --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul > ${TEMPLATE_FILE}
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Template generated to ${TEMPLATE_FILE}"
 
 acceptance: pull load
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"

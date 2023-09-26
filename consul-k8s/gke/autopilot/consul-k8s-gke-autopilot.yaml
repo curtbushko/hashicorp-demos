@@ -1,4 +1,26 @@
 ---
+# Source: consul/templates/cni-resourcequota.yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: consul-cni
+  namespace: consul
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: consul
+    component: cni 
+spec:
+  hard:
+    pods: "5000"
+  scopeSelector:
+    matchExpressions:
+    - operator: In
+      scopeName: PriorityClass
+      values:
+      - system-node-critical
+---
 # Source: consul/templates/connect-injector-disruptionbudget.yaml
 # PodDisruptionBudget to prevent degrading the connectInject cluster through
 # voluntary cluster changes.
@@ -42,6 +64,19 @@ spec:
       app: consul
       release: "consul"
       component: server
+---
+# Source: consul/templates/cni-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: consul-cni
+  namespace: consul
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: consul
+    component: cni
 ---
 # Source: consul/templates/connect-inject-serviceaccount.yaml
 apiVersion: v1
@@ -107,6 +142,23 @@ metadata:
     heritage: Helm
     release: consul
     component: webhook-cert-manager
+---
+# Source: consul/templates/gateway-resources-configmap.yaml
+# Configuration of Gateway Resources Job which creates managed Gateway configuration.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: consul-gateway-resources-config
+  namespace: consul
+  labels: 
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: consul
+    component: gateway-resources
+data:
+  resources.json: |
+    {"limits":{"cpu":"100m","memory":"100Mi"},"requests":{"cpu":"100m","memory":"100Mi"}}
 ---
 # Source: consul/templates/server-config-configmap.yaml
 # StatefulSet to run the actual Consul server cluster.
@@ -196,15 +248,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: controlplanerequestlimits.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: controlplanerequestlimits.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -398,15 +450,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: exportedservices.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: exportedservices.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -540,19 +592,22 @@ status:
   storedVersions: []
 ---
 # Source: consul/templates/crd-gatewayclassconfigs.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: gatewayclassconfigs.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: gatewayclassconfigs.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -618,7 +673,61 @@ spec:
                     maximum: 8
                     minimum: 1
                     type: integer
+                  resources:
+                    description: Resources defines the resource requirements for the
+                      gateway.
+                    properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
                 type: object
+              mapPrivilegedContainerPorts:
+                description: The value to add to privileged ports ( ports < 1024)
+                  for gateway containers
+                format: int32
+                type: integer
               nodeSelector:
                 additionalProperties:
                   type: string
@@ -626,6 +735,10 @@ spec:
                   pod to fit on a node. Selector which must match a node''s labels
                   for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/'
                 type: object
+              openshiftSCCName:
+                description: The name of the OpenShift SecurityContextConstraints
+                  resource for this gateway class to use.
+                type: string
               podSecurityPolicy:
                 description: The name of an existing Kubernetes PodSecurityPolicy
                   to bind to the managed ServiceAccount if ACLs are managed.
@@ -678,19 +791,6 @@ spec:
                       type: string
                   type: object
                 type: array
-              openshiftSCCName:
-                description: The name of an existing SecurityContextConstraints
-                  resource to bind to the managed role when running on OpenShift.
-                type: string
-              mapPrivilegedContainerPorts:
-                type: integer
-                format: int32
-                minimum: 0
-                maximum: 64512
-                description: mapPrivilegedContainerPorts is the value which Consul will add to privileged container port
-                  values (ports < 1024) defined on a Gateway when the number is greater than 0. This cannot be more than
-                  64512 as the highest privileged port is 1023, which would then map to 65535, which is the highest 
-                  valid port number.
             type: object
         type: object
     served: true
@@ -707,15 +807,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: ingressgateways.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: ingressgateways.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -781,6 +881,43 @@ spec:
                       while waiting for a connection to be established.
                     format: int32
                     type: integer
+                  passiveHealthCheck:
+                    description: PassiveHealthCheck configuration determines how upstream
+                      proxy instances will be monitored for removal from the load
+                      balancing pool.
+                    properties:
+                      baseEjectionTime:
+                        description: The base time that a host is ejected for. The
+                          real time is equal to the base time multiplied by the number
+                          of times the host has been ejected and is capped by max_ejection_time
+                          (Default 300s). Defaults to 30s.
+                        type: string
+                      enforcingConsecutive5xx:
+                        description: EnforcingConsecutive5xx is the % chance that
+                          a host will be actually ejected when an outlier status is
+                          detected through consecutive 5xx. This setting can be used
+                          to disable ejection or to ramp it up slowly. Ex. Setting
+                          this to 10 will make it a 10% chance that the host will
+                          be ejected.
+                        format: int32
+                        type: integer
+                      interval:
+                        description: Interval between health check analysis sweeps.
+                          Each sweep may remove hosts or return hosts to the pool.
+                          Ex. setting this to "10s" will set the interval to 10 seconds.
+                        type: string
+                      maxEjectionPercent:
+                        description: The maximum % of an upstream cluster that can
+                          be ejected due to outlier detection. Defaults to 10% but
+                          will eject at least one host regardless of the value.
+                        format: int32
+                        type: integer
+                      maxFailures:
+                        description: MaxFailures is the count of consecutive failures
+                          that results in a host being removed from the pool.
+                        format: int32
+                        type: integer
+                    type: object
                 type: object
               listeners:
                 description: Listeners declares what ports the ingress gateway should
@@ -860,6 +997,47 @@ spec:
                               service is located. Partitioning is a Consul Enterprise
                               feature.
                             type: string
+                          passiveHealthCheck:
+                            description: PassiveHealthCheck configuration determines
+                              how upstream proxy instances will be monitored for removal
+                              from the load balancing pool.
+                            properties:
+                              baseEjectionTime:
+                                description: The base time that a host is ejected
+                                  for. The real time is equal to the base time multiplied
+                                  by the number of times the host has been ejected
+                                  and is capped by max_ejection_time (Default 300s).
+                                  Defaults to 30s.
+                                type: string
+                              enforcingConsecutive5xx:
+                                description: EnforcingConsecutive5xx is the % chance
+                                  that a host will be actually ejected when an outlier
+                                  status is detected through consecutive 5xx. This
+                                  setting can be used to disable ejection or to ramp
+                                  it up slowly. Ex. Setting this to 10 will make it
+                                  a 10% chance that the host will be ejected.
+                                format: int32
+                                type: integer
+                              interval:
+                                description: Interval between health check analysis
+                                  sweeps. Each sweep may remove hosts or return hosts
+                                  to the pool. Ex. setting this to "10s" will set
+                                  the interval to 10 seconds.
+                                type: string
+                              maxEjectionPercent:
+                                description: The maximum % of an upstream cluster
+                                  that can be ejected due to outlier detection. Defaults
+                                  to 10% but will eject at least one host regardless
+                                  of the value.
+                                format: int32
+                                type: integer
+                              maxFailures:
+                                description: MaxFailures is the count of consecutive
+                                  failures that results in a host being removed from
+                                  the pool.
+                                format: int32
+                                type: integer
+                            type: object
                           requestHeaders:
                             description: Allow HTTP header manipulation to be configured.
                             properties:
@@ -1083,15 +1261,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: jwtproviders.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: jwtproviders.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -1199,6 +1377,66 @@ spec:
                           the proxy listener will wait for the JWKS to be fetched
                           before being activated. \n Default value is false."
                         type: boolean
+                      jwksCluster:
+                        description: "JWKSCluster defines how the specified Remote JWKS
+                          URI is to be fetched."
+                        properties:
+                          connectTimeout:
+                            description: "The timeout for new network connections to hosts
+                              in the cluster. \n If not set, a default value of 5s will be
+                              used."
+                            format: int64
+                            type: integer
+                          discoveryType:
+                            description: "DiscoveryType refers to the service discovery type
+                              to use for resolving the cluster. \n Defaults to STRICT_DNS."
+                            type: string
+                          tlsCertificates:
+                            description: "TLSCertificates refers to the data containing
+                              certificate authority certificates to use in verifying a presented
+                              peer certificate."
+                            properties:
+                              caCertificateProviderInstance:
+                                description: "CaCertificateProviderInstance Certificate provider
+                                  instance for fetching TLS certificates."
+                                properties:
+                                  instanceName:
+                                    description: "InstanceName refers to the certificate provider
+                                      instance name. \n The default value is 'default'."
+                                    type: string
+                                  certificateName:
+                                    description: "CertificateName is used to specify certificate 
+                                      instances or types. For example, \"ROOTCA\" to specify a 
+                                      root-certificate (validation context) or \"example.com\" 
+                                      to specify a certificate for a particular domain. \n 
+                                      The default value is the empty string."
+                                    type: string
+                                type: object
+                              trustedCA:
+                                description: "TrustedCA defines TLS certificate data containing
+                                  certificate authority certificates to use in verifying a presented
+                                  peer certificate. \n Exactly one of Filename, EnvironmentVariable, 
+                                  InlineString or InlineBytes must be specified."
+                                properties:
+                                  filename:
+                                    description: "The name of the file on the local system to use a
+                                      data source for trusted CA certificates."
+                                    type: string
+                                  environmentVariable:
+                                    description: "The environment variable on the local system to use
+                                      a data source for trusted CA certificates."
+                                    type: string
+                                  inlineString: 
+                                    description: "A string to inline in the configuration for use as 
+                                      a data source for trusted CA certificates."
+                                    type: string
+                                  inlineBytes:
+                                    description: "A sequence of bytes to inline in the configuration 
+                                      for use as a data source for trusted CA certificates."
+                                    type: string
+                                type: object
+                            type: object
+                        type: object
                       requestTimeoutMs:
                         description: RequestTimeoutMs is the number of milliseconds
                           to time out when making a request for the JWKS.
@@ -1347,15 +1585,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: meshes.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: meshes.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -1557,19 +1795,22 @@ status:
   storedVersions: []
 ---
 # Source: consul/templates/crd-meshservices.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: meshservices.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: meshservices.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -1624,15 +1865,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: proxydefaults.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: proxydefaults.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -1780,15 +2021,6 @@ spec:
                       type: string
                     type: array
                 type: object
-              prioritizeByLocality:
-                description: PrioritizeByLocality contains the configuration for
-                  locality aware routing.
-                properties:
-                  mode:
-                    description: Mode specifies the behavior of PrioritizeByLocality
-                      routing. Valid values are "", "none", and "failover".
-                    type: string
-                type: object
               meshGateway:
                 description: MeshGateway controls the default mesh gateway configuration
                   for this service.
@@ -1890,250 +2122,20 @@ status:
   conditions: []
   storedVersions: []
 ---
-# Source: consul/templates/crd-routeretryfilters.yaml
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.9.2
-  creationTimestamp: null
-  name: routeretryfilters.consul.hashicorp.com
-  labels:
-    app: consul
-    chart: consul-helm
-    heritage: Helm
-    release: consul
-    component: crd
-spec:
-  group: consul.hashicorp.com
-  names:
-    kind: RouteRetryFilter
-    listKind: RouteRetryFilterList
-    plural: routeretryfilters
-    singular: routeretryfilter
-  scope: Namespaced
-  versions:
-  - additionalPrinterColumns:
-    - description: The sync status of the resource with Consul
-      jsonPath: .status.conditions[?(@.type=="Synced")].status
-      name: Synced
-      type: string
-    - description: The last successful synced time of the resource with Consul
-      jsonPath: .status.lastSyncedTime
-      name: Last Synced
-      type: date
-    - description: The age of the resource
-      jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: RouteRetryFilter is the Schema for the routeretryfilters API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: RouteRetryFilterSpec defines the desired state of RouteRetryFilter
-            properties:
-              numRetries:
-                format: int32
-                minimum: 0
-                type: integer
-              retryOn:
-                items:
-                  type: string
-                type: array
-              retryOnConnectFailure:
-                type: boolean
-              retryOnStatusCodes:
-                items:
-                  format: int32
-                  type: integer
-                type: array
-            type: object
-          status:
-            properties:
-              conditions:
-                description: Conditions indicate the latest available observations
-                  of a resource's current state.
-                items:
-                  description: 'Conditions define a readiness condition for a Consul
-                    resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
-                  properties:
-                    lastTransitionTime:
-                      description: LastTransitionTime is the last time the condition
-                        transitioned from one status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: A human readable message indicating details about
-                        the transition.
-                      type: string
-                    reason:
-                      description: The reason for the condition's last transition.
-                      type: string
-                    status:
-                      description: Status of the condition, one of True, False, Unknown.
-                      type: string
-                    type:
-                      description: Type of condition.
-                      type: string
-                  required:
-                  - status
-                  - type
-                  type: object
-                type: array
-              lastSyncedTime:
-                description: LastSyncedTime is the last time the resource successfully
-                  synced with Consul.
-                format: date-time
-                type: string
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
----
-# Source: consul/templates/crd-routetimeoutfilters.yaml
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.9.2
-  creationTimestamp: null
-  name: routetimeoutfilters.consul.hashicorp.com
-  labels:
-    app: consul
-    chart: consul-helm
-    heritage: Helm
-    release: consul
-    component: crd
-spec:
-  group: consul.hashicorp.com
-  names:
-    kind: RouteTimeoutFilter
-    listKind: RouteTimeoutFilterList
-    plural: routetimeoutfilters
-    singular: routetimeoutfilter
-  scope: Namespaced
-  versions:
-  - additionalPrinterColumns:
-    - description: The sync status of the resource with Consul
-      jsonPath: .status.conditions[?(@.type=="Synced")].status
-      name: Synced
-      type: string
-    - description: The last successful synced time of the resource with Consul
-      jsonPath: .status.lastSyncedTime
-      name: Last Synced
-      type: date
-    - description: The age of the resource
-      jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: RouteTimeoutFilter is the Schema for the httproutetimeoutfilters
-          API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: RouteTimeoutFilterSpec defines the desired state of RouteTimeoutFilter
-            properties:
-              idleTimeout:
-                description: A Duration represents the elapsed time between two instants
-                  as an int64 nanosecond count. The representation limits the largest
-                  representable duration to approximately 290 years.
-                format: int64
-                type: integer
-              requestTimeout:
-                description: A Duration represents the elapsed time between two instants
-                  as an int64 nanosecond count. The representation limits the largest
-                  representable duration to approximately 290 years.
-                format: int64
-                type: integer
-            type: object
-          status:
-            properties:
-              conditions:
-                description: Conditions indicate the latest available observations
-                  of a resource's current state.
-                items:
-                  description: 'Conditions define a readiness condition for a Consul
-                    resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
-                  properties:
-                    lastTransitionTime:
-                      description: LastTransitionTime is the last time the condition
-                        transitioned from one status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: A human readable message indicating details about
-                        the transition.
-                      type: string
-                    reason:
-                      description: The reason for the condition's last transition.
-                      type: string
-                    status:
-                      description: Status of the condition, one of True, False, Unknown.
-                      type: string
-                    type:
-                      description: Type of condition.
-                      type: string
-                  required:
-                  - status
-                  - type
-                  type: object
-                type: array
-              lastSyncedTime:
-                description: LastSyncedTime is the last time the resource successfully
-                  synced with Consul.
-                format: date-time
-                type: string
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
----
 # Source: consul/templates/crd-samenessgroups.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: samenessgroups.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: samenessgroups.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -2261,15 +2263,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: servicedefaults.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: servicedefaults.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -2548,18 +2550,22 @@ spec:
                               The real time is equal to the base time multiplied by
                               the number of times the host has been ejected and is
                               capped by max_ejection_time (Default 300s). Defaults
-                              to 30000ms or 30s.
+                              to 30s.
                             type: string
                           enforcingConsecutive5xx:
                             description: EnforcingConsecutive5xx is the % chance that
                               a host will be actually ejected when an outlier status
                               is detected through consecutive 5xx. This setting can
                               be used to disable ejection or to ramp it up slowly.
+                              Ex. Setting this to 10 will make it a 10% chance that
+                              the host will be ejected.
                             format: int32
                             type: integer
                           interval:
                             description: Interval between health check analysis sweeps.
                               Each sweep may remove hosts or return hosts to the pool.
+                              Ex. setting this to "10s" will set the interval to 10
+                              seconds.
                             type: string
                           maxEjectionPercent:
                             description: The maximum % of an upstream cluster that
@@ -2665,19 +2671,22 @@ spec:
                                 The real time is equal to the base time multiplied
                                 by the number of times the host has been ejected and
                                 is capped by max_ejection_time (Default 300s). Defaults
-                                to 30000ms or 30s.
+                                to 30s.
                               type: string
                             enforcingConsecutive5xx:
                               description: EnforcingConsecutive5xx is the % chance
                                 that a host will be actually ejected when an outlier
                                 status is detected through consecutive 5xx. This setting
                                 can be used to disable ejection or to ramp it up slowly.
+                                Ex. Setting this to 10 will make it a 10% chance that
+                                the host will be ejected.
                               format: int32
                               type: integer
                             interval:
                               description: Interval between health check analysis
                                 sweeps. Each sweep may remove hosts or return hosts
-                                to the pool.
+                                to the pool. Ex. setting this to "10s" will set the
+                                interval to 10 seconds.
                               type: string
                             maxEjectionPercent:
                               description: The maximum % of an upstream cluster that
@@ -2763,15 +2772,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: serviceintentions.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: serviceintentions.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -3081,15 +3090,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: serviceresolvers.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: serviceresolvers.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -3304,16 +3313,6 @@ spec:
                         type: integer
                     type: object
                 type: object
-              prioritizeByLocality:
-                description: PrioritizeByLocality controls whether the locality of
-                  services within the local partition will be used to prioritize connectivity.
-                properties:
-                  mode:
-                    description: 'Mode specifies the type of prioritization that will
-                      be performed when selecting nodes in the local partition. Valid
-                      values are: "" (default "none"), "none", and "failover".'
-                    type: string
-                type: object
               redirect:
                 description: Redirect when configured, all attempts to resolve the
                   service this resolver defines will be substituted for the supplied
@@ -3436,15 +3435,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: servicerouters.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: servicerouters.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -3755,15 +3754,15 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: servicesplitters.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: servicesplitters.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -3943,304 +3942,20 @@ status:
   conditions: []
   storedVersions: []
 ---
-# Source: consul/templates/crd-tcproutes.yaml
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    api-approved.kubernetes.io: https://github.com/kubernetes-sigs/gateway-api/pull/1538
-    gateway.networking.k8s.io/bundle-version: v0.6.2
-    gateway.networking.k8s.io/channel: experimental
-  creationTimestamp: null
-  labels:
-    app: consul
-    chart: consul-helm
-    heritage: Helm
-    release: consul
-    component: crd
-  name: tcproutes.gateway.networking.k8s.io
-spec:
-  group: gateway.networking.k8s.io
-  names:
-    categories:
-      - gateway-api
-    kind: TCPRoute
-    listKind: TCPRouteList
-    plural: tcproutes
-    singular: tcproute
-  scope: Namespaced
-  versions:
-    - additionalPrinterColumns:
-        - jsonPath: .metadata.creationTimestamp
-          name: Age
-          type: date
-      name: v1alpha2
-      schema:
-        openAPIV3Schema:
-          description: TCPRoute provides a way to route TCP requests. When combined with a Gateway listener, it can be used to forward connections on the port specified by the listener to a set of backends specified by the TCPRoute.
-          properties:
-            apiVersion:
-              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-              type: string
-            kind:
-              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-              type: string
-            metadata:
-              type: object
-            spec:
-              description: Spec defines the desired state of TCPRoute.
-              properties:
-                parentRefs:
-                  description: "ParentRefs references the resources (usually Gateways) that a Route wants to be attached to. Note that the referenced parent resource needs to allow this for the attachment to be complete. For Gateways, that means the Gateway needs to allow attachment from Routes of this kind and namespace. \n The only kind of parent resource with \"Core\" support is Gateway. This API may be extended in the future to support additional kinds of parent resources such as one of the route kinds. \n It is invalid to reference an identical parent more than once. It is valid to reference multiple distinct sections within the same parent resource, such as 2 Listeners within a Gateway. \n It is possible to separately reference multiple distinct objects that may be collapsed by an implementation. For example, some implementations may choose to merge compatible Gateway Listeners together. If that is the case, the list of routes attached to those resources should also be merged. \n Note that for ParentRefs that cross namespace boundaries, there are specific rules. Cross-namespace references are only valid if they are explicitly allowed by something in the namespace they are referring to. For example, Gateway has the AllowedRoutes field, and ReferenceGrant provides a generic way to enable any other kind of cross-namespace reference."
-                  items:
-                    description: "ParentReference identifies an API object (usually a Gateway) that can be considered a parent of this resource (usually a route). The only kind of parent resource with \"Core\" support is Gateway. This API may be extended in the future to support additional kinds of parent resources, such as HTTPRoute. \n The API object must be valid in the cluster; the Group and Kind must be registered in the cluster for this reference to be valid."
-                    properties:
-                      group:
-                        default: gateway.networking.k8s.io
-                        description: "Group is the group of the referent. When unspecified, \"gateway.networking.k8s.io\" is inferred. To set the core API group (such as for a \"Service\" kind referent), Group must be explicitly set to \"\" (empty string). \n Support: Core"
-                        maxLength: 253
-                        pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-                        type: string
-                      kind:
-                        default: Gateway
-                        description: "Kind is kind of the referent. \n Support: Core (Gateway) \n Support: Implementation-specific (Other Resources)"
-                        maxLength: 63
-                        minLength: 1
-                        pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
-                        type: string
-                      name:
-                        description: "Name is the name of the referent. \n Support: Core"
-                        maxLength: 253
-                        minLength: 1
-                        type: string
-                      namespace:
-                        description: "Namespace is the namespace of the referent. When unspecified, this refers to the local namespace of the Route. \n Note that there are specific rules for ParentRefs which cross namespace boundaries. Cross-namespace references are only valid if they are explicitly allowed by something in the namespace they are referring to. For example: Gateway has the AllowedRoutes field, and ReferenceGrant provides a generic way to enable any other kind of cross-namespace reference. \n Support: Core"
-                        maxLength: 63
-                        minLength: 1
-                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-                        type: string
-                      port:
-                        description: "Port is the network port this Route targets. It can be interpreted differently based on the type of parent resource. \n When the parent resource is a Gateway, this targets all listeners listening on the specified port that also support this kind of Route(and select this Route). It's not recommended to set `Port` unless the networking behaviors specified in a Route must apply to a specific port as opposed to a listener(s) whose port(s) may be changed. When both Port and SectionName are specified, the name and port of the selected listener must match both specified values. \n Implementations MAY choose to support other parent resources. Implementations supporting other types of parent resources MUST clearly document how/if Port is interpreted. \n For the purpose of status, an attachment is considered successful as long as the parent resource accepts it partially. For example, Gateway listeners can restrict which Routes can attach to them by Route kind, namespace, or hostname. If 1 of 2 Gateway listeners accept attachment from the referencing Route, the Route MUST be considered successfully attached. If no Gateway listeners accept attachment from this Route, the Route MUST be considered detached from the Gateway. \n Support: Extended \n <gateway:experimental>"
-                        format: int32
-                        maximum: 65535
-                        minimum: 1
-                        type: integer
-                      sectionName:
-                        description: "SectionName is the name of a section within the target resource. In the following resources, SectionName is interpreted as the following: \n * Gateway: Listener Name. When both Port (experimental) and SectionName are specified, the name and port of the selected listener must match both specified values. \n Implementations MAY choose to support attaching Routes to other resources. If that is the case, they MUST clearly document how SectionName is interpreted. \n When unspecified (empty string), this will reference the entire resource. For the purpose of status, an attachment is considered successful if at least one section in the parent resource accepts it. For example, Gateway listeners can restrict which Routes can attach to them by Route kind, namespace, or hostname. If 1 of 2 Gateway listeners accept attachment from the referencing Route, the Route MUST be considered successfully attached. If no Gateway listeners accept attachment from this Route, the Route MUST be considered detached from the Gateway. \n Support: Core"
-                        maxLength: 253
-                        minLength: 1
-                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-                        type: string
-                    required:
-                      - name
-                    type: object
-                  maxItems: 32
-                  type: array
-                rules:
-                  description: Rules are a list of TCP matchers and actions.
-                  items:
-                    description: TCPRouteRule is the configuration for a given rule.
-                    properties:
-                      backendRefs:
-                        description: "BackendRefs defines the backend(s) where matching requests should be sent. If unspecified or invalid (refers to a non-existent resource or a Service with no endpoints), the underlying implementation MUST actively reject connection attempts to this backend. Connection rejections must respect weight; if an invalid backend is requested to have 80% of connections, then 80% of connections must be rejected instead. \n Support: Core for Kubernetes Service \n Support: Implementation-specific for any other resource \n Support for weight: Extended"
-                        items:
-                          description: "BackendRef defines how a Route should forward a request to a Kubernetes resource. \n Note that when a namespace is specified, a ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details."
-                          properties:
-                            group:
-                              default: ""
-                              description: Group is the group of the referent. For example, "gateway.networking.k8s.io". When unspecified or empty string, core API group is inferred.
-                              maxLength: 253
-                              pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-                              type: string
-                            kind:
-                              default: Service
-                              description: Kind is kind of the referent. For example "HTTPRoute" or "Service". Defaults to "Service" when not specified.
-                              maxLength: 63
-                              minLength: 1
-                              pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
-                              type: string
-                            name:
-                              description: Name is the name of the referent.
-                              maxLength: 253
-                              minLength: 1
-                              type: string
-                            namespace:
-                              description: "Namespace is the namespace of the backend. When unspecified, the local namespace is inferred. \n Note that when a namespace is specified, a ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details. \n Support: Core"
-                              maxLength: 63
-                              minLength: 1
-                              pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-                              type: string
-                            port:
-                              description: Port specifies the destination port number to use for this resource. Port is required when the referent is a Kubernetes Service. In this case, the port number is the service port number, not the target port. For other resources, destination port might be derived from the referent resource or this field.
-                              format: int32
-                              maximum: 65535
-                              minimum: 1
-                              type: integer
-                            weight:
-                              default: 1
-                              description: "Weight specifies the proportion of requests forwarded to the referenced backend. This is computed as weight/(sum of all weights in this BackendRefs list). For non-zero values, there may be some epsilon from the exact proportion defined here depending on the precision an implementation supports. Weight is not a percentage and the sum of weights does not need to equal 100. \n If only one backend is specified and it has a weight greater than 0, 100% of the traffic is forwarded to that backend. If weight is set to 0, no traffic should be forwarded for this entry. If unspecified, weight defaults to 1. \n Support for this field varies based on the context where used."
-                              format: int32
-                              maximum: 1000000
-                              minimum: 0
-                              type: integer
-                          required:
-                            - name
-                          type: object
-                        maxItems: 16
-                        minItems: 1
-                        type: array
-                    type: object
-                  maxItems: 16
-                  minItems: 1
-                  type: array
-              required:
-                - rules
-              type: object
-            status:
-              description: Status defines the current state of TCPRoute.
-              properties:
-                parents:
-                  description: "Parents is a list of parent resources (usually Gateways) that are associated with the route, and the status of the route with respect to each parent. When this route attaches to a parent, the controller that manages the parent must add an entry to this list when the controller first sees the route and should update the entry as appropriate when the route or gateway is modified. \n Note that parent references that cannot be resolved by an implementation of this API will not be added to this list. Implementations of this API can only populate Route status for the Gateways/parent resources they are responsible for. \n A maximum of 32 Gateways will be represented in this list. An empty list means the route has not been attached to any Gateway."
-                  items:
-                    description: RouteParentStatus describes the status of a route with respect to an associated Parent.
-                    properties:
-                      conditions:
-                        description: "Conditions describes the status of the route with respect to the Gateway. Note that the route's availability is also subject to the Gateway's own status conditions and listener status. \n If the Route's ParentRef specifies an existing Gateway that supports Routes of this kind AND that Gateway's controller has sufficient access, then that Gateway's controller MUST set the \"Accepted\" condition on the Route, to indicate whether the route has been accepted or rejected by the Gateway, and why. \n A Route MUST be considered \"Accepted\" if at least one of the Route's rules is implemented by the Gateway. \n There are a number of cases where the \"Accepted\" condition may not be set due to lack of controller visibility, that includes when: \n * The Route refers to a non-existent parent. * The Route is of a type that the controller does not support. * The Route is in a namespace the controller does not have access to."
-                        items:
-                          description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, \n \ttype FooStatus struct{ \t    // Represents the observations of a foo's current state. \t    // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\" \t    // +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map \t    // +listMapKey=type \t    Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields \t}"
-                          properties:
-                            lastTransitionTime:
-                              description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
-                              format: date-time
-                              type: string
-                            message:
-                              description: message is a human readable message indicating details about the transition. This may be an empty string.
-                              maxLength: 32768
-                              type: string
-                            observedGeneration:
-                              description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
-                              format: int64
-                              minimum: 0
-                              type: integer
-                            reason:
-                              description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
-                              maxLength: 1024
-                              minLength: 1
-                              pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
-                              type: string
-                            status:
-                              description: status of the condition, one of True, False, Unknown.
-                              enum:
-                                - "True"
-                                - "False"
-                                - Unknown
-                              type: string
-                            type:
-                              description: type of condition in CamelCase or in foo.example.com/CamelCase. --- Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be useful (see .node.status.conditions), the ability to deconflict is important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
-                              maxLength: 316
-                              pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-                              type: string
-                          required:
-                            - lastTransitionTime
-                            - message
-                            - reason
-                            - status
-                            - type
-                          type: object
-                        maxItems: 8
-                        minItems: 1
-                        type: array
-                        x-kubernetes-list-map-keys:
-                          - type
-                        x-kubernetes-list-type: map
-                      controllerName:
-                        description: "ControllerName is a domain/path string that indicates the name of the controller that wrote this status. This corresponds with the controllerName field on GatewayClass. \n Example: \"example.net/gateway-controller\". \n The format of this field is DOMAIN \"/\" PATH, where DOMAIN and PATH are valid Kubernetes names (https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names). \n Controllers MUST populate this field when writing status. Controllers should ensure that entries to status populated with their ControllerName are cleaned up when they are no longer necessary."
-                        maxLength: 253
-                        minLength: 1
-                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*\/[A-Za-z0-9\/\-._~%!$&'()*+,;=:]+$
-                        type: string
-                      parentRef:
-                        description: ParentRef corresponds with a ParentRef in the spec that this RouteParentStatus struct describes the status of.
-                        properties:
-                          group:
-                            default: gateway.networking.k8s.io
-                            description: "Group is the group of the referent. When unspecified, \"gateway.networking.k8s.io\" is inferred. To set the core API group (such as for a \"Service\" kind referent), Group must be explicitly set to \"\" (empty string). \n Support: Core"
-                            maxLength: 253
-                            pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-                            type: string
-                          kind:
-                            default: Gateway
-                            description: "Kind is kind of the referent. \n Support: Core (Gateway) \n Support: Implementation-specific (Other Resources)"
-                            maxLength: 63
-                            minLength: 1
-                            pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
-                            type: string
-                          name:
-                            description: "Name is the name of the referent. \n Support: Core"
-                            maxLength: 253
-                            minLength: 1
-                            type: string
-                          namespace:
-                            description: "Namespace is the namespace of the referent. When unspecified, this refers to the local namespace of the Route. \n Note that there are specific rules for ParentRefs which cross namespace boundaries. Cross-namespace references are only valid if they are explicitly allowed by something in the namespace they are referring to. For example: Gateway has the AllowedRoutes field, and ReferenceGrant provides a generic way to enable any other kind of cross-namespace reference. \n Support: Core"
-                            maxLength: 63
-                            minLength: 1
-                            pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-                            type: string
-                          port:
-                            description: "Port is the network port this Route targets. It can be interpreted differently based on the type of parent resource. \n When the parent resource is a Gateway, this targets all listeners listening on the specified port that also support this kind of Route(and select this Route). It's not recommended to set `Port` unless the networking behaviors specified in a Route must apply to a specific port as opposed to a listener(s) whose port(s) may be changed. When both Port and SectionName are specified, the name and port of the selected listener must match both specified values. \n Implementations MAY choose to support other parent resources. Implementations supporting other types of parent resources MUST clearly document how/if Port is interpreted. \n For the purpose of status, an attachment is considered successful as long as the parent resource accepts it partially. For example, Gateway listeners can restrict which Routes can attach to them by Route kind, namespace, or hostname. If 1 of 2 Gateway listeners accept attachment from the referencing Route, the Route MUST be considered successfully attached. If no Gateway listeners accept attachment from this Route, the Route MUST be considered detached from the Gateway. \n Support: Extended \n <gateway:experimental>"
-                            format: int32
-                            maximum: 65535
-                            minimum: 1
-                            type: integer
-                          sectionName:
-                            description: "SectionName is the name of a section within the target resource. In the following resources, SectionName is interpreted as the following: \n * Gateway: Listener Name. When both Port (experimental) and SectionName are specified, the name and port of the selected listener must match both specified values. \n Implementations MAY choose to support attaching Routes to other resources. If that is the case, they MUST clearly document how SectionName is interpreted. \n When unspecified (empty string), this will reference the entire resource. For the purpose of status, an attachment is considered successful if at least one section in the parent resource accepts it. For example, Gateway listeners can restrict which Routes can attach to them by Route kind, namespace, or hostname. If 1 of 2 Gateway listeners accept attachment from the referencing Route, the Route MUST be considered successfully attached. If no Gateway listeners accept attachment from this Route, the Route MUST be considered detached from the Gateway. \n Support: Core"
-                            maxLength: 253
-                            minLength: 1
-                            pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-                            type: string
-                        required:
-                          - name
-                        type: object
-                    required:
-                      - controllerName
-                      - parentRef
-                    type: object
-                  maxItems: 32
-                  type: array
-              required:
-                - parents
-              type: object
-          required:
-            - spec
-          type: object
-      served: true
-      storage: true
-      subresources:
-        status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
----
 # Source: consul/templates/crd-terminatinggateways.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
-  name: terminatinggateways.consul.hashicorp.com
   labels:
     app: consul
     chart: consul-helm
     heritage: Helm
     release: consul
     component: crd
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: terminatinggateways.consul.hashicorp.com
 spec:
   group: consul.hashicorp.com
   names:
@@ -4371,6 +4086,36 @@ status:
   conditions: []
   storedVersions: []
 ---
+# Source: consul/templates/cni-clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: consul-cni
+  namespace: consul
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: consul
+    component: cni 
+rules:
+- apiGroups: [""]
+  resources: 
+  - pods
+  verbs: 
+  - get
+  - list
+  - watch
+  - patch
+  - update
+- apiGroups: ["policy"]
+  resources:
+  - podsecuritypolicies 
+  resourceNames:
+  - consul-cni
+  verbs:
+  - use
+---
 # Source: consul/templates/connect-inject-clusterrole.yaml
 # The ClusterRole to enable the Connect injector to get, list, watch and patch MutatingWebhookConfiguration.
 apiVersion: rbac.authorization.k8s.io/v1
@@ -4401,8 +4146,6 @@ rules:
   - meshservices
   - samenessgroups
   - controlplanerequestlimits
-  - routeretryfilters
-  - routetimeoutfilters
   - jwtproviders
   verbs:
   - create
@@ -4647,6 +4390,26 @@ rules:
   - consul-webhook-cert-manager
   verbs:
   - get
+---
+# Source: consul/templates/cni-clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: consul-cni
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: consul
+    component: cni
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: consul-cni
+subjects:
+- kind: ServiceAccount
+  name: consul-cni
+  namespace: consul
 ---
 # Source: consul/templates/connect-inject-clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -4951,6 +4714,88 @@ spec:
       port: 80
       targetPort: 8500
 ---
+# Source: consul/templates/cni-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: consul-cni
+  namespace: consul
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: consul
+    component: cni
+spec:
+  selector:
+    matchLabels:
+      app: consul
+      chart: consul-helm
+      release: consul
+      component: cni
+  template:
+    metadata:
+      labels:
+        app: consul
+        chart: consul-helm
+        release: consul
+        component: cni
+      annotations:
+        consul.hashicorp.com/connect-inject: "false"
+    spec:
+      # consul-cni only runs on linux operating systems
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        # Mark the pod as a critical add-on for rescheduling.
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+      # Tell kubernetes that this daemonset is critical so that it will be scheduled on a new node before other pods
+      priorityClassName: system-node-critical
+      serviceAccountName: consul-cni
+      securityContext:
+        runAsGroup: 0
+        runAsNonRoot: false
+        runAsUser: 0
+      # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
+      # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
+      terminationGracePeriodSeconds: 10
+      containers:
+        # This container installs the consul CNI binaries and CNI network config file on each node
+        - name: install-cni
+          image: hashicorp/consul-k8s-control-plane:1.2.2
+          securityContext:
+            privileged: true
+          command:
+            - consul-k8s-control-plane
+            - install-cni
+            - -log-level=debug
+            - -cni-bin-dir=/home/kubernetes/bin
+            - -cni-net-dir=/etc/cni/net.d
+            - -multus=false
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 75m
+              memory: 75Mi
+          volumeMounts:
+            - mountPath: /home/kubernetes/bin
+              name: cni-bin-dir
+            - mountPath: /etc/cni/net.d
+              name: cni-net-dir
+      volumes:
+        # Used to install CNI.
+        - name: cni-bin-dir
+          hostPath:
+            path: /home/kubernetes/bin 
+        - name: cni-net-dir
+          hostPath:
+            path: /etc/cni/net.d
+---
 # Source: consul/templates/connect-inject-deployment.yaml
 # The deployment for running the Connect sidecar injector
 apiVersion: apps/v1
@@ -4985,17 +4830,18 @@ spec:
       serviceAccountName: consul-connect-injector
       containers:
         - name: sidecar-injector
-          image: "docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev"
+          image: "hashicorp/consul-k8s-control-plane:1.2.2"
           ports:
             - containerPort: 8080
               name: webhook-server
               protocol: TCP
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             capabilities:
               drop:
               - ALL
+              add:
+              - NET_BIND_SERVICE
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
@@ -5027,15 +4873,15 @@ spec:
                 -log-level=debug \
                 -log-json=false \
                 -default-inject=true \
-                -consul-image="docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev" \
-                -consul-dataplane-image="docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev" \
-                -consul-k8s-image="docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev" \
+                -consul-image="hashicorp/consul:1.16.2" \
+                -consul-dataplane-image="hashicorp/consul-dataplane:1.2.2" \
+                -consul-k8s-image="hashicorp/consul-k8s-control-plane:1.2.2" \
                 -release-name="consul" \
                 -release-namespace="consul" \
                 -resource-prefix=consul \
                 -listen=:8080 \
                 -default-enable-transparent-proxy=true \
-                -enable-cni=false \
+                -enable-cni=true \
                 -transparent-proxy-default-overwrite-probes=true \
                 -default-enable-metrics=false \
                 -enable-gateway-metrics=true  \
@@ -5143,14 +4989,15 @@ spec:
             -config-file=/bootstrap/config/webhook-config.json \
             -deployment-name=consul-webhook-cert-manager \
             -deployment-namespace=consul
-        image: docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
+        image: hashicorp/consul-k8s-control-plane:1.2.2
         name: webhook-cert-manager
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
           capabilities:
             drop:
             - ALL
+            add:
+            - NET_BIND_SERVICE
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
@@ -5225,8 +5072,6 @@ spec:
         runAsNonRoot: true
         runAsUser: 100
       volumes:
-        - name: tmp
-          emptyDir: {}
         - name: config
           configMap:
             name: consul-server-config
@@ -5237,7 +5082,7 @@ spec:
             secretName: consul-ent-license
       initContainers:
       - name: locality-init
-        image: docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
+        image: hashicorp/consul-k8s-control-plane:1.2.2
         env:
         - name: NODE_NAME
           valueFrom:
@@ -5253,18 +5098,18 @@ spec:
             mountPath: /consul/extra-config
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
           capabilities:
             drop:
             - ALL
+            add:
+            - NET_BIND_SERVICE
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
           runAsUser: 100
       containers:
         - name: consul
-          image: "docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev"
-          imagePullPolicy: 
+          image: "hashicorp/consul:1.16.2"
           env:
             - name: ADVERTISE_IP
               valueFrom:
@@ -5308,9 +5153,6 @@ spec:
             - name: consul-license
               mountPath: /consul/license
               readOnly: true
-            - name: tmp
-              mountPath: /tmp
-              readOnly: false
           ports:
             - name: http
               containerPort: 8500
@@ -5361,10 +5203,11 @@ spec:
               memory: 200Mi
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             capabilities:
               drop:
               - ALL
+              add:
+              - NET_BIND_SERVICE
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
@@ -5378,6 +5221,58 @@ spec:
         resources:
           requests:
             storage: 10Gi
+---
+# Source: consul/templates/crd-controlplanerequestlimits.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-exportedservices.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-ingressgateways.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-jwtproviders.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-meshes.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-proxydefaults.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-samenessgroups.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-servicedefaults.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-serviceintentions.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-serviceresolvers.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-servicerouters.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-servicesplitters.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+---
+# Source: consul/templates/crd-terminatinggateways.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
 ---
 # Source: consul/templates/connect-inject-mutatingwebhookconfiguration.yaml
 # The MutatingWebhookConfiguration to enable the Connect injector.
@@ -5690,7 +5585,7 @@ metadata:
 spec:
   containers:
     - name: consul-test
-      image: "docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev"
+      image: "hashicorp/consul:1.16.2"
       env:
         - name: HOST_IP
           valueFrom:
@@ -5743,13 +5638,14 @@ spec:
       serviceAccountName: consul-gateway-cleanup
       containers:
         - name: gateway-cleanup
-          image: docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
+          image: hashicorp/consul-k8s-control-plane:1.2.2
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             capabilities:
               drop:
               - ALL
+              add:
+              - NET_BIND_SERVICE
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
@@ -5800,13 +5696,14 @@ spec:
       serviceAccountName: consul-gateway-resources
       containers:
         - name: gateway-resources
-          image: docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
+          image: hashicorp/consul-k8s-control-plane:1.2.2
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             capabilities:
               drop:
               - ALL
+              add:
+              - NET_BIND_SERVICE
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
@@ -5835,3 +5732,11 @@ spec:
             limits:
               memory: "50Mi"
               cpu: "50m"
+          volumeMounts:
+            - name: config
+              mountPath: /consul/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: consul-gateway-resources-config

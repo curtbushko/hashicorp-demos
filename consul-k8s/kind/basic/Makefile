@@ -1,14 +1,14 @@
-WORKTREE='curtbushko/reduce-gateway-noise'
+WORKTREE='main'
 K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(WORKTREE)
-CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(WORKTREE)
+CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul-enterprise/$(WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(WORKTREE)
 DOCKERHUB=curtbushko
 #CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
 CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
-#CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
-CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
-#CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
-CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
+CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
+#CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
+CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
+#CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
 
 CUR_DIR=$(shell pwd)
 KIND_VERSION="v1.27.1"

@@ -24,6 +24,9 @@ connectInject:
   apiGateway:
     manageExternalCRDs: false
     manageCustomCRDs: true
+  cni:
+    enabled: true
+    cniBinDir: /home/kubernetes/bin
 dns:
   enabled: false
 ui:
