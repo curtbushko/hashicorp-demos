@@ -1,15 +1,17 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
-K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
-CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul
-CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane
-ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+CONSUL_WORKTREE=main
+K8S_WORKTREE=main
+CONSUL_DATAPLANE_WORKTREE=main
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(K8S_WORKTREE)
+K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(K8S_WORKTREE)
+CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(CONSUL_WORKTREE)
+CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(CONSUL_DATAPLANE_WORKTREE)
 DOCKERHUB=curtbushko
-#CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.2.0-dev
-CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
+CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
+#CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
+CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.17-dev
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
-CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.16-dev
-CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
-#CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.2-dev
+CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
+#CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 
 CUR_DIR=$(shell pwd)
 GIT_REV=$(shell cd $(CNI_DIR) && git rev-parse --short HEAD)
@@ -56,7 +58,7 @@ acceptance:
 	@kind load docker-image $(CONSUL_K8S_IMAGE) --name dc1 || true
 	@kind load docker-image $(CONSUL_IMAGE) --name dc2 || true
 	@kind load docker-image $(CONSUL_K8S_IMAGE) --name dc2 || true
-	cd $(ACCEPTANCE_DIR)/acceptance/tests/peering && go test -run TestPeering_ConnectNamespaces -v -p 1 -timeout 120m \
+	cd $(K8S_DIR)/acceptance/tests/peering && go test -run TestPeering_ConnectNamespaces -v -p 1 -timeout 120m \
 		-use-kind \
 		-enable-enterprise \
 		-enable-transparent-proxy \

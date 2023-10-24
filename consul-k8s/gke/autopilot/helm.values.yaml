@@ -1,37 +1,47 @@
 global:
+  enabled: false
   name: consul
-  datacenter: dc1
-  logLevel: "debug"
+  domain: consul
+  enterpriseLicense:
+   secretName: 'consul-ent-license'
+   secretKey: 'key'
+  imagePullSecrets: []
+  datacenter: us-west2
   tls:
     enabled: false
-ingress:
-  enabled: false
-server:
-  replicas: 1
-  resources:
-    requests:
-      memory: "200Mi"
-      cpu: "500m"
-    limits:
-      memory: "200Mi"
-      cpu: "500m"
+  enableConsulNamespaces: true
+  federation:
+    enabled: false
+ 
+externalServers:
+  enabled: true
+  hosts: ["external.consul.server"] 
+  httpsPort: 8500
+  tlsServerName: null
+  useSystemRoots: false
+  k8sAuthMethodHost: null
+
 connectInject:
   enabled: true
-  default: true
-  replicas: 1
-  transparentProxy:
-    defaultEnabled: true
-  apiGateway:
-    manageExternalCRDs: false
-    manageCustomCRDs: true
+  default: false
+  healthChecks:
+    enabled: false
+    reconcilePeriod: "1m"
+  logLevel: "info"
+  resources:
+    requests:
+      memory: "100Mi"
+      cpu: "1"
+    limits:
+      memory: "100Mi"
+      cpu: "1"
+  namespaceSelector: null
+  k8sAllowNamespaces: ["sbx1", "consul"]
+  k8sDenyNamespaces: []
   cni:
     enabled: true
-    cniBinDir: /home/kubernetes/bin
-dns:
-  enabled: false
-ui:
-  enabled: true
-  service:
-    enabled: true
-controller:
-  enabled: true
+    logLevel: info
+    cniBinDir: "/home/kubernetes/bin"
+    cniNetDir: "/etc/cni/net.d"
+  transparentProxy:
+    defaultEnabled: false #to enable service mesh this should be set to true

@@ -1,0 +1,37 @@
+global:
+  name: consul
+  datacenter: dc1
+  logLevel: "debug"
+  tls:
+    enabled: false
+ingress:
+  enabled: false
+server:
+  replicas: 1
+  resources:
+    requests:
+      memory: "200Mi"
+      cpu: "500m"
+    limits:
+      memory: "200Mi"
+      cpu: "500m"
+connectInject:
+  enabled: true
+  default: true
+  replicas: 1
+  transparentProxy:
+    defaultEnabled: true
+  apiGateway:
+    manageExternalCRDs: false
+    manageCustomCRDs: true
+  cni:
+    enabled: true
+    cniBinDir: /home/kubernetes/bin
+dns:
+  enabled: false
+ui:
+  enabled: true
+  service:
+    enabled: true
+controller:
+  enabled: true

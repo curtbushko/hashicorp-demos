@@ -3,18 +3,21 @@ CHART_VERSION="1.2"
 
 # WARNING: ! THIS IS THE VERSION YOU WANT TO CERTIFY AGAINST!
 TEMPLATE_FILE=consul-k8s-gke-autopilot.yaml
-K8S_WORKTREE=curtbushko/gke-autopilot-acceptance
+K8S_WORKTREE=release/1.2.x
 CONSUL_WORKTREE=main
 CONSUL_DATAPLANE_WORKTREE=main
 K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(K8S_WORKTREE)
 CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(CONSUL_WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(CONSUL_DATAPLANE_WORKTREE)
 DOCKERHUB=curtbushko
-CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
+#CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
+CONSUL_K8S_IMAGE=hashicorp/consul-k8s-control-plane:1.2.2
+CONSUL_IMAGE=hashicorp/consul:1.16.2
+CONSUL_DATAPLANE_IMAGE=hashicorp/consul-dataplane:1.2.2
 #CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
-CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
-CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
+#CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
+#CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 #CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
 
 CUR_DIR=$(shell pwd)
@@ -71,13 +74,19 @@ generate-helm-template:
 	helm template consul hashicorp/consul -f $(CUR_DIR)/helm.values.yaml --version ${CHART_VERSION} --create-namespace --namespace consul --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul > ${TEMPLATE_FILE}
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Template generated to ${TEMPLATE_FILE}"
 
-acceptance: pull load
+acceptance:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"
-	cd $(K8S_DIR)/acceptance/tests/connect && go test -run TestConnectInjectNamespaces -v -p 1 -timeout 20m \
+	cd $(K8S_DIR)/acceptance/tests/connect && go test -run TestConnectInject -v -p 1 -timeout 20m \
 		-enable-enterprise \
+		-use-gke-autopilot \
+		-use-gke \
+		-enable-cni \
+		-enable-transparent-proxy \
+		-kube-namespaces=consul \
+		-kube-contexts=gke_hc-36a856f5b92c4e61b1b951faa58_us-central1_autopilot-cluster-2 \
 		-consul-image=$(CONSUL_IMAGE) \
 		-consul-k8s-image=$(CONSUL_K8S_IMAGE) \
-		-consul-dataplane-image=$(CONSUL_DATAPLANE_IMAGE)
+		-consul-dataplane-image=$(CONSUL_DATAPLANE_IMAGE) 
 
 deploy-static:
 	kubectl create namespace static || true
