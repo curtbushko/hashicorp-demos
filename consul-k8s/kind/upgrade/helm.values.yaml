@@ -1,0 +1,39 @@
+global:
+  name: consul
+  logLevel: debug
+  adminPartitions:
+    enabled: false
+  federation:
+    enabled: false
+    createFederationSecret: false
+  acls:
+    manageSystemACLs: true
+    bootstrapToken:
+      secretName: bootstrap-acl-token
+      secretKey: token
+
+connectInject:
+  enabled: false
+dns:
+  enabled: true
+  enableRedirection: true
+
+server:
+  enabled: true
+  replicas: 3
+  maxUnavailable: 1
+ 
+  extraConfig: |
+    {
+      "audit":{
+          "enabled": false,
+           "sink":{
+             "My sink":{
+                 "type":"file",
+                 "format":"json",
+                 "path":"/dev/stdout",
+                 "delivery_guarantee":"best-effort"
+             }
+           }
+       }
+     }
