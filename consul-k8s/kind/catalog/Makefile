@@ -1,19 +1,21 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
-K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
-CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul
-CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane
-ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s
+WORKTREE="curtbushko/NET-6588-abandoned-nodes"
+TAG=abandoned-nodes
+#WORKTREE=main
+K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(WORKTREE)
+CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul-enterprise/$(WORKTREE)
+CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(WORKTREE)
 DOCKERHUB=curtbushko
 #CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
-CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
+CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:$(TAG)
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
-CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
+CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.18-dev
 #CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
-CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
+CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.4-dev
 
 CUR_DIR=$(shell pwd)
 KIND_VERSION="v1.27.1"
 NODE=dc1-worker2
+NODE2=dc1-worker3
 
 .PHONY: versions
 versions:
@@ -58,8 +60,8 @@ load:
 deploy-consul:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deploying consul"
 	@kubectl create ns consul || true
-	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul
-	cd $(HELM_CHART_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.image=$(CONSUL_IMAGE) --set global.imageK8S=$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
+	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul || true
+	cd $(K8S_DIR) && helm install consul --create-namespace -n consul -f $(CUR_DIR)/helm.values.yaml --set global.image=$(CONSUL_IMAGE) --set global.imageK8S=$(CONSUL_K8S_IMAGE) --set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul ./charts/consul
 	@kubectl ns consul
 
 .PHONY: acceptance-tproxy
@@ -127,16 +129,25 @@ stop-node:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting node ${NODE}"
 	@kubectl delete node ${NODE} || true
 	@docker stop ${NODE} || true
+	#@kubectl delete node ${NODE2} || true
+	#@docker stop ${NODE2} || true
 
 .PHONY: start-node
 start-node:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Starting node ${NODE}"
 	@docker start ${NODE} || true
+	#@docker start ${NODE2} || true
 
 .PHONY: show-node-services
 show-node-services:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Showing pods on node ${NODE}"
 	@kubectl get pods --all-namespaces -o wide |grep ${NODE} || true
+	@kubectl get pods --all-namespaces -o wide |grep ${NODE2} || true
+
+.PHONY: show-nodes
+#consul catalog nodes -datacenter us-135-stag-default | grep "internal-virtual" | cut -d" " -f1 | xargs -n 1 -I NODE bash -c "curl -i -X PUT consul.service.us-135-stag-default.seatgeek.stag:8500/v1/catalog/deregister -d '{\"Node\": \"NODE\"}'"
+show-nodes:
+	@kubectl exec consul-server-0 -n consul -- curl -s -XGET localhost:8500/v1/catalog/nodes | jq
 
 .PHONY: deploy-static
 deploy-static:
