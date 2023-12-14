@@ -1,8 +1,9 @@
 # WARNING: ! THIS IS THE VERSION YOU WANT TO CERTIFY AGAINST!
-CHART_VERSION="1.2"
+CHART_VERSION="1.2.3"
 
 # WARNING: ! THIS IS THE VERSION YOU WANT TO CERTIFY AGAINST!
 TEMPLATE_FILE=consul-k8s-gke-autopilot.yaml
+DHS_TEMPLATE_FILE=consul-k8s-gke-autopilot-dhs.yaml
 K8S_WORKTREE=release/1.2.x
 CONSUL_WORKTREE=main
 CONSUL_DATAPLANE_WORKTREE=main
@@ -73,6 +74,13 @@ generate-helm-template:
 	@helm repo add hashicorp https://helm.releases.hashicorp.com && helm repo update && helm search repo hashicorp --version ${CHART_VERSION}
 	helm template consul hashicorp/consul -f $(CUR_DIR)/helm.values.yaml --version ${CHART_VERSION} --create-namespace --namespace consul --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul > ${TEMPLATE_FILE}
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Template generated to ${TEMPLATE_FILE}"
+
+generate-dhs-template:
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Generating helm template from chart ${CHART_VERSION}"
+	@helm repo add hashicorp https://helm.releases.hashicorp.com && helm repo update && helm search repo hashicorp --version ${CHART_VERSION}
+	helm template consul hashicorp/consul -f $(CUR_DIR)/helm.dhs.yaml --version ${CHART_VERSION} --create-namespace --namespace consul --set global.enterpriseLicense.secretName="consul-ent-license" --set global.enterpriseLicense.secretKey="key" --set fullnameOverride=consul > ${TEMPLATE_FILE}
+	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Template generated to ${DHS_TEMPLATE_FILE}"
+
 
 acceptance:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running acceptance tests"

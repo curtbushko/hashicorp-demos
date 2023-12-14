@@ -9476,6 +9476,35 @@ spec:
     release: "consul"
     component: connect-injector
 ---
+# Source: consul/templates/dns-service.yaml
+# Service for Consul DNS.
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-dns
+  namespace: consul
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: consul
+    component: dns
+spec:
+  type: ClusterIP
+  ports:
+    - name: dns-tcp
+      port: 53
+      protocol: "TCP"
+      targetPort: dns-tcp
+    - name: dns-udp
+      port: 53
+      protocol: "UDP"
+      targetPort: dns-udp
+  selector:
+    app: consul
+    release: "consul"
+    hasDNS: "true"
+---
 # Source: consul/templates/cni-daemonset.yaml
 apiVersion: apps/v1
 kind: DaemonSet
@@ -9618,7 +9647,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: CONSUL_ADDRESSES
-              value: external.consul.server
+              value: consul.bes-sb.hidhs.org
             - name: CONSUL_GRPC_PORT
               value: "8502"
             - name: CONSUL_HTTP_PORT
@@ -9632,19 +9661,20 @@ spec:
             - "-ec"
             - |
               consul-k8s-control-plane inject-connect \
-                -log-level=info \
+                -log-level=debug \
                 -log-json=false \
                 -default-inject=false \
-                -consul-image="hashicorp/consul:1.16.3" \
+                -consul-image="hashicorp/consul-enterprise:1.16.1-ent" \
                 -consul-dataplane-image="hashicorp/consul-dataplane:1.2.3" \
                 -consul-k8s-image="hashicorp/consul-k8s-control-plane:1.2.3" \
                 -release-name="consul" \
                 -release-namespace="consul" \
                 -resource-prefix=consul \
                 -listen=:8080 \
-                -default-enable-transparent-proxy=false \
+                -default-enable-transparent-proxy=true \
                 -enable-cni=true \
                 -transparent-proxy-default-overwrite-probes=true \
+                -enable-consul-dns=true \
                 -default-enable-metrics=false \
                 -enable-gateway-metrics=true  \
                 -default-enable-metrics-merging=false  \
@@ -10142,7 +10172,7 @@ metadata:
 spec:
   containers:
     - name: consul-test
-      image: "hashicorp/consul:1.16.3"
+      image: "hashicorp/consul-enterprise:1.16.1-ent"
       env:
         - name: HOST_IP
           valueFrom:
