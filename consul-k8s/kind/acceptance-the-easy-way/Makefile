@@ -73,8 +73,8 @@ license/%:
 	@kubectl create namespace consul || true
 	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul || true
 
-.PHONY: acceptance/%
-acceptance/%: create-cluster/dc1 create-cluster/dc2 pull license/dc1 license/dc2 load/dc1 load/dc2
+.PHONY: acceptance/% 
+acceptance/%: create-cluster/dc1 create-cluster/dc2 pull license/dc1 license/dc2 load/dc1 load/dc2 ## acceptance/% help
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Running $(*) acceptance tests"
 	@kubectl config set-context kind-dc1
 	@cd $(K8S_DIR)/acceptance/tests/$(*) && go test -v -p 1 -timeout 40m \
@@ -107,7 +107,7 @@ packages:
 	@cat $(K8S_DIR)/acceptance/ci-inputs/kind_acceptance_test_packages.yaml
 
 .PHONY: acceptance
-acceptance: acceptance/partitions
+acceptance: acceptance/partitions  ## acceptance help
 
 .PHONY: create-cluster/%
 create-cluster/%:
@@ -122,9 +122,12 @@ delete-cluster/%:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Deleting Kind cluster $(*)"
 	@kind delete cluster --name $(*)
 
-
 .PHONY: delete-clusters
 delete-clusters: delete-cluster/dc1 delete-cluster/dc2 delete-cluster/dc3 delete-cluster/dc4
+
+.PHONY:
+help: ## Display this help
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 .PHONY: all
 all: delete-clusters build-k8s create-clusters pull load deploy-consul wait deploy-static
