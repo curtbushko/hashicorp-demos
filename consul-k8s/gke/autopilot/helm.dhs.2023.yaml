@@ -1,0 +1,53 @@
+global:
+  enabled: false
+  name: "dhs-bes-sb-consul"
+  domain: consul
+  image: "hashicorp/consul-enterprise:1.16.1-ent"
+  #imageK8S: "hashicorp/consul-k8s:1.0.5"
+  # adminPartitions:
+  #  enabled: true
+  #  name: "sbx1-gke"
+  enterpriseLicense:
+   secretName: 'consul-ent-license'
+   secretKey: 'key'
+  imagePullSecrets: []
+  datacenter: us-west2
+  tls:
+    enabled: false
+  enableConsulNamespaces: true
+  federation:
+    enabled: false
+ 
+externalServers:
+  enabled: true
+  hosts: ["consul.bes-sb.hidhs.org"]
+  httpsPort: 8500
+  tlsServerName: null
+  useSystemRoots: false
+  k8sAuthMethodHost: null
+
+connectInject:
+  enabled: true
+  default: false
+  healthChecks:
+    enabled: false
+    reconcilePeriod: "1m"
+  logLevel: "debug"
+  resources:
+    requests:
+      memory: "100Mi"
+      cpu: "1"
+    limits:
+      memory: "100Mi"
+      cpu: "1"
+  namespaceSelector: null
+  k8sAllowNamespaces: ["sbx1", "consul"]
+  k8sDenyNamespaces: []
+  cni:
+     enabled: true
+     logLevel: info
+     cniBinDir: "/home/kubernetes/bin"
+     cniNetDir: "/etc/cni/net.d"
+  transparentProxy:
+    defaultEnabled: true
+    defaultOverwriteProbes: true

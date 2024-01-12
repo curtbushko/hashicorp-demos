@@ -1,6 +1,7 @@
-WORKTREE="curtbushko/NET-6588-abandoned-nodes"
-TAG=abandoned-nodes
+WORKTREE="zalimeni/net-6581-sg-endpoints-perf-improvement-main"
+TAG=net-6581-sg-endpoints-perf-improvement-main
 #WORKTREE=main
+
 K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(WORKTREE)
 CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul-enterprise/$(WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(WORKTREE)
