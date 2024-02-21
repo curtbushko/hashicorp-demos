@@ -6,11 +6,11 @@ K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(K8S_WORKTREE)
 CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(CONSUL_WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(CONSUL_DATAPLANE_WORKTREE)
 DOCKERHUB=curtbushko
-CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
+CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.4-dev
 #CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
-CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.17-dev
+CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.18-dev
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
-CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
+CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.4-dev
 #CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
 
 CUR_DIR=$(shell pwd)
@@ -87,22 +87,13 @@ calico: deploy-calico
 
 deploy-calico:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Installing calico on dc1"
-	kubectl config use-context kind-dc1
+	@kubectl config use-context kind-dc1
 	kubectl create namespace calico-system ||true
-	kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.0/manifests/tigera-operator.yaml
-	@sleep 10
-	kubectl apply -f ./calico-config.yaml
-	@sleep 60
-	kubectl -n calico-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
-	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Installing calico on dc2"
-	kubectl config use-context kind-dc2
-	kubectl create namespace calico-system ||true
-	kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.0/manifests/tigera-operator.yaml
-	@sleep 10
-	kubectl apply -f ./calico-config.yaml
-	@sleep 60
-	kubectl -n calico-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
-
+	kubectl create -f $(K8S_DIR)/acceptance/framework/environment/cni-kind/tigera-operator.yaml
+	# Sleeps are needed as installs can happen too quickly for Kind to handle it
+	@sleep 30
+	kubectl create -f $(K8S_DIR)/acceptance/framework/environment/cni-kind/custom-resources.yaml
+	@sleep 20
 
 deploy-static:
 	kubectl create namespace static || true

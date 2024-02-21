@@ -3,12 +3,12 @@ K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(WORKTREE)
 CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul-enterprise/$(WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(WORKTREE)
 DOCKERHUB=curtbushko
-#CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.3.0-dev
-CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
-CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
-#CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.17-dev
-CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
-#CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
+CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.4-dev
+#CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
+#CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
+CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul:1.18-dev
+#CONSUL_DATAPLANE_IMAGE=$(DOCKERHUB)/consul-dataplane:latest
+CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.3-dev
 
 CUR_DIR=$(shell pwd)
 KIND_VERSION="v1.27.1"
@@ -18,7 +18,7 @@ versions:
 	echo "Consul-k8s image: ${CONSUL_K8S_IMAGE}"
 	echo "Consul dataplane image: ${CONSUL_DATAPLANE_IMAGE}"
 
-build: build-k8s build-consul build-consul-dataplane
+build: build-k8s build-consul build-dataplane
 
 build-k8s:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Building consul-k8s image ${CONSUL_K8S_IMAGE}"
@@ -30,10 +30,9 @@ build-consul:
 
 build-dataplane:
 	@echo "[`date -u +'%Y-%m-%dT%H:%M:%SZ'`] Building consul-dataplane image ${CONSUL_DATAPLANE_IMAGE}"
-	@cd $(CONSUL_DATAPLANE_DIR) && make bin
 	@cd $(CONSUL_DATAPLANE_DIR) && mkdir -p dist/linux/amd64 && GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o dist/linux/amd64/consul-dataplane ./cmd/consul-dataplane
 	@cd $(CONSUL_DATAPLANE_DIR) && mkdir -p dist/linux/amd64 && GOARCH=arm64 GOOS=linux CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o dist/linux/arm64/consul-dataplane ./cmd/consul-dataplane
-	@cd $(CONSUL_DATAPLANE_DIR) && docker buildx build -t "${CONSUL_DATAPLANE_IMAGE}" --platform linux/amd64,linux/arm64 --push .
+	@cd $(CONSUL_DATAPLANE_DIR) && docker buildx build -t "${CONSUL_DATAPLANE_IMAGE}" --platform linux/amd64,linux/arm64 --push --build-arg "GOLANG_VERSION=1.21.6" .
 
 pull:
 	@docker pull ${CONSUL_K8S_IMAGE}
