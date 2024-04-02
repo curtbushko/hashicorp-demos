@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: static-client
-          image: curlimages/curl:latest
+          image: docker.mirror.hashicorp.services/buildpack-deps:jammy-curl
           # Just spin & wait forever, we'll use `kubectl exec` to demo
           command: ['/bin/sh', '-c', '--']
           args: ['while true; do sleep 30; done;']

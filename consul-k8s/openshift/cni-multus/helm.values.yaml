@@ -3,17 +3,18 @@ global:
   datacenter: dc1
   logLevel: "debug"
   imagePullSecrets:
-    - name: 15962412-openshift-pull-secret
+    - name: openshift-pull-secret
   openshift:
     enabled: true
 server:
+  enabled: true
   replicas: 1
   bootstrapExpect: 1
   disruptionBudget:
     enabled: true
     maxUnavailable: 0
 client:
-  enabled: true
+  enabled: false
   grpc: true
 connectInject:
   enabled: true
@@ -21,12 +22,12 @@ connectInject:
   replicas: 1
   cni:
     enabled: true
-    logLevel: debug
+    logLevel: info
     multus: true
     cniBinDir: /var/lib/cni/bin
     cniNetDir: /etc/kubernetes/cni/net.d
 dns:
-  enabled: false
+  enabled: true
 ui:
   enabled: true
 controller:

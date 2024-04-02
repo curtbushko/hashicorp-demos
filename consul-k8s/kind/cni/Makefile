@@ -6,8 +6,8 @@ K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/$(K8S_WORKTREE)
 CONSUL_DIR=$(HOME)/workspace/github.com/hashicorp/consul/$(CONSUL_WORKTREE)
 CONSUL_DATAPLANE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-dataplane/$(CONSUL_DATAPLANE_WORKTREE)
 DOCKERHUB=curtbushko
-CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.4-dev
-#CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
+#CONSUL_K8S_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-k8s-control-plane:1.4-dev
+CONSUL_K8S_IMAGE=$(DOCKERHUB)/consul-k8s-control-plane-dev:latest
 CONSUL_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-enterprise:1.18-dev
 #CONSUL_IMAGE=$(DOCKERHUB)/consul-dev:latest
 CONSUL_DATAPLANE_IMAGE=docker.mirror.hashicorp.services/hashicorppreview/consul-dataplane:1.4-dev
@@ -117,6 +117,6 @@ show-host:
 wait:
 	sleep 60 
 
-all: delete-cluster create-cluster deploy-calico build deploy-consul wait deploy-static podstatus
+all: delete-cluster create-cluster deploy-calico build-k8s deploy-consul wait deploy-static podstatus
 reset: delete-cluster create-cluster deploy-calico wait deploy-consul wait deploy-static podstatus
 
