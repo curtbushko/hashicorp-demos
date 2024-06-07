@@ -18,7 +18,7 @@ start-nomad:
 	@echo "Starting local Nomad"
 	mkdir -p $(TMPDIR)/nomad-data/alloc
 	nomad agent -dev \
-	-consul-address '127.0.0.1:8500'  \
+	-consul-address '10.0.0.63:8500'  \
 	-network-interface '{{GetDefaultInterfaces | attr "name"}}' \
 	-data-dir=$(TMPDIR)/nomad-data \
 	-bind 0.0.0.0

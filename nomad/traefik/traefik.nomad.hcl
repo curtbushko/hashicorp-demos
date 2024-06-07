@@ -60,7 +60,7 @@ job "traefik" {
     exposedByDefault = false
 
     [providers.consulCatalog.endpoint]
-      address = "http://172.17.0.1:8500"
+      address = "http://10.0.0.63:8500"
 EOF
 
         destination = "local/traefik.toml"
