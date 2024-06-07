@@ -37,10 +37,6 @@ job "demo-webapp" {
       config {
         image = "hashicorp/demo-webapp-lb-guide"
         ports = ["http"]
-        volumes = [
-                    # Use absolute paths to mount arbitrary paths on the host
-                    "/path/on/host:/path/in/container",
-        ]
       }
     }
   }

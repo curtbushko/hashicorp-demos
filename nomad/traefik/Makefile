@@ -4,7 +4,7 @@ NOMAD_ADDR = http://localhost:4646
 
 .PHONY: start-consul
 start-consul:
-	consul agent -dev
+	consul agent -dev -config-file consul.hcl
 
 .PHONY: stop-consul
 stop-consul:
