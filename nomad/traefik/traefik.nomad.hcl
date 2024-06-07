@@ -19,6 +19,7 @@ job "traefik" {
 
     service {
       name = "traefik"
+      provider = "nomad"
 
       check {
         name     = "alive"
@@ -59,7 +60,7 @@ job "traefik" {
     exposedByDefault = false
 
     [providers.consulCatalog.endpoint]
-      address = "http://127.0.0.1:8500"
+      address = "http://172.17.0.1:8500"
 EOF
 
         destination = "local/traefik.toml"
