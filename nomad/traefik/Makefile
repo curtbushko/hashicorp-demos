@@ -23,11 +23,19 @@ start-nomad:
 	@echo "Starting local Nomad"
 	rm -rf $(TMPDIR)/nomad-data
 	mkdir -p $(TMPDIR)/nomad-data/alloc
+ifeq ($(OS), darwin)
 	nomad agent -dev \
 	-consul-address '10.0.0.76:8500'  \
 	-network-interface '{{GetDefaultInterfaces | attr "name"}}' \
 	-data-dir=$(TMPDIR)/nomad-data \
 	-bind 0.0.0.0
+else
+	sudo nomad agent -dev \
+	-consul-address '10.0.0.76:8500'  \
+	-network-interface '{{GetDefaultInterfaces | attr "name"}}' \
+	-data-dir=$(TMPDIR)/nomad-data \
+	-bind 0.0.0.0
+endif
 	@echo "In another shell run: export NOMAD_ADDR=http://localhost:4646"
 
 .PHONY: stop-nomad
