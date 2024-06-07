@@ -1,10 +1,15 @@
+OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 HOSTNAME := $(shell hostname |tr '[:upper:]' '[:lower:]')
 TMPDIR = $(CURDIR)/tmp
 NOMAD_ADDR = http://localhost:4646
 
 .PHONY: start-consul
 start-consul:
-	consul agent -dev -config-file consul.hcl
+ifeq ($(OS), darwin)
+	consul agent -dev -config-file consul.hcl.darwin
+else
+	sudo consul agent -dev -config-file consul.hcl.linux
+endif
 
 .PHONY: stop-consul
 stop-consul:
