@@ -6,9 +6,9 @@ NOMAD_ADDR = http://localhost:4646
 .PHONY: start-consul
 start-consul:
 ifeq ($(OS), darwin)
-	consul agent -dev -config-file consul.hcl.darwin
+	consul agent -dev -config-file consul.darwin.hcl
 else
-	sudo consul agent -dev -config-file consul.hcl.linux
+	sudo consul agent -dev -config-file consul.linux.hcl
 endif
 
 .PHONY: stop-consul
@@ -21,9 +21,10 @@ stop-consul:
 .PHONY: start-nomad
 start-nomad:
 	@echo "Starting local Nomad"
+	rm -rf $(TMPDIR)/nomad-data
 	mkdir -p $(TMPDIR)/nomad-data/alloc
 	nomad agent -dev \
-	-consul-address '10.0.0.63:8500'  \
+	-consul-address '10.0.0.76:8500'  \
 	-network-interface '{{GetDefaultInterfaces | attr "name"}}' \
 	-data-dir=$(TMPDIR)/nomad-data \
 	-bind 0.0.0.0
