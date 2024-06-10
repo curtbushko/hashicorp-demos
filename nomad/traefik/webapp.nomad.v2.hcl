@@ -1,9 +1,15 @@
-
 job "demo-webapp" {
   datacenters = ["dc1"]
 
   group "demo" {
     count = 3
+
+    update {
+      max_parallel     = 1
+      canary           = 3
+      auto_revert      = true
+      auto_promote     = false
+    }
 
     network {
       port  "http"{
@@ -35,7 +41,7 @@ job "demo-webapp" {
         NODE_IP = "${NOMAD_IP_http}"
       }
       config {
-        image = "hashicorp/demo-webapp-lb-guide"
+        image = "ghcr.io/curtbushko/demo-webapp:v2"
         ports = ["http"]
       }
     }

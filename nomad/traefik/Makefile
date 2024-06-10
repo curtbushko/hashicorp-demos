@@ -1,3 +1,4 @@
+WEBAPP_IMAGE=ghcr.io/curtbushko/demo-webapp
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 HOSTNAME := $(shell hostname |tr '[:upper:]' '[:lower:]')
 TMPDIR = $(CURDIR)/tmp
@@ -47,8 +48,23 @@ stop-nomad:
 
 .PHONY: run-traefik
 run-traefik:
-	nomad run traefik.nomad.hcl
+	NOMAD_ADDR=http://10.0.0.76:4646 nomad run traefik.nomad.hcl
 
-.PHONY: run-webapp
-run-webapp:
-	nomad run webapp.nomad.hcl
+.PHONY: run-webapp-v1
+run-webapp-v1:
+	NOMAD_ADDR=http://10.0.0.76:4646 nomad run webapp.nomad.v1.hcl
+
+.PHONY: run-webapp-v2
+run-webapp-v2:
+	NOMAD_ADDR=http://10.0.0.76:4646 nomad run webapp.nomad.v2.hcl
+
+.PHONY: run-webapp-v3
+run-webapp-v3:
+	NOMAD_ADDR=http://10.0.0.76:4646 nomad run webapp.nomad.v3.hcl
+
+.PHONY:build-webapp 
+build-webapp:
+	@cd demo-webapp && docker buildx build --build-arg DOCKER_TAG=v1 -t "${WEBAPP_IMAGE}:v1" --platform linux/amd64,linux/arm64 --push .
+	@cd demo-webapp && docker buildx build --build-arg DOCKER_TAG=v2 -t "${WEBAPP_IMAGE}:v2" --platform linux/amd64,linux/arm64 --push .
+	@cd demo-webapp && docker buildx build --build-arg DOCKER_TAG=v3 -t "${WEBAPP_IMAGE}:v3" --platform linux/amd64,linux/arm64 --push .
+
