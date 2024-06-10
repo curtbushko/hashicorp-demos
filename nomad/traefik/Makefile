@@ -5,6 +5,10 @@ TMPDIR = $(CURDIR)/tmp
 NOMAD_ADDR = http://localhost:4646
 DARWIN_IP=$(shell ifconfig en0 | grep inet | grep -v inet6 | cut -d ' ' -f2 )
 LINUX_IP=$(shell ifconfig eno1 | grep inet | grep -v inet6 | cut -d ' ' -f2 )
+IP=$(shell route -n get default | grep "interface:" | cut -d ' ' -f4 | xargs -n1 ipconfig getifaddr)
+
+getip:
+	@echo "IP address: $(IP)"
 
 .PHONY: start-consul
 start-consul:
