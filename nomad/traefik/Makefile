@@ -2,6 +2,8 @@ OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 HOSTNAME := $(shell hostname |tr '[:upper:]' '[:lower:]')
 TMPDIR = $(CURDIR)/tmp
 NOMAD_ADDR = http://localhost:4646
+DARWIN_IP=$(shell ifconfig en0 | grep inet | grep -v inet6 | cut -d ' ' -f2 )
+LINUX_IP=$(shell ifconfig eno1 | grep inet | grep -v inet6 | cut -d ' ' -f2 )
 
 .PHONY: start-consul
 start-consul:
@@ -25,13 +27,13 @@ start-nomad:
 	mkdir -p $(TMPDIR)/nomad-data/alloc
 ifeq ($(OS), darwin)
 	nomad agent -dev \
-	-consul-address '10.0.0.76:8500'  \
+	-consul-address '$(DARWIN_IP):8500'  \
 	-network-interface '{{GetDefaultInterfaces | attr "name"}}' \
 	-data-dir=$(TMPDIR)/nomad-data \
 	-bind 0.0.0.0
 else
 	sudo nomad agent -dev \
-	-consul-address '10.0.0.76:8500'  \
+	-consul-address '$(LINUX_IP):8500'  \
 	-network-interface '{{GetDefaultInterfaces | attr "name"}}' \
 	-data-dir=$(TMPDIR)/nomad-data \
 	-bind 0.0.0.0
@@ -47,6 +49,11 @@ stop-nomad:
 
 .PHONY: run-traefik
 run-traefik:
+ifeq ($(OS), darwin)
+	export TRAEFIK_ADDR=$(ifconfig en0 | grep inet | grep -v inet6 | cut -d ' ' -f2)
+else
+	export TRAEFIK_ADDR=$(ifconfig eno1 | grep inet | grep -v inet6 | cut -d ' ' -f2)
+endif
 	nomad run traefik.nomad.hcl
 
 .PHONY: run-webapp

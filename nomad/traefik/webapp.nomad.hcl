@@ -29,11 +29,13 @@ job "demo-webapp" {
     }
 
     task "server" {
-      driver = "docker"
       env {
         PORT    = "${NOMAD_PORT_http}"
         NODE_IP = "${NOMAD_IP_http}"
       }
+
+      driver = "docker"
+
       config {
         image = "hashicorp/demo-webapp-lb-guide"
         ports = ["http"]

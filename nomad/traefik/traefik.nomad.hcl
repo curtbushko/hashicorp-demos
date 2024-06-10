@@ -1,4 +1,3 @@
-
 job "traefik" {
   region      = "global"
   datacenters = ["dc1"]
@@ -12,14 +11,13 @@ job "traefik" {
         static = 8080
       }
 
-      port "api" {
+      port "traefik" {
         static = 8081
       }
     }
 
     service {
       name = "traefik"
-      provider = "nomad"
 
       check {
         name     = "alive"
@@ -34,8 +32,8 @@ job "traefik" {
       driver = "docker"
 
       config {
-        image        = "traefik:v2.2"
-        network_mode = "host"
+        image  = "traefik:v2.2"
+        ports  = ["http", "traefik"]
 
         volumes = [
           "local/traefik.toml:/etc/traefik/traefik.toml",
@@ -60,7 +58,8 @@ job "traefik" {
     exposedByDefault = false
 
     [providers.consulCatalog.endpoint]
-      address = "http://10.0.0.76:8500"
+      address = "192.168.1.71:8500"
+      scheme  = "http"
 EOF
 
         destination = "local/traefik.toml"
