@@ -3,6 +3,8 @@ OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 HOSTNAME := $(shell hostname |tr '[:upper:]' '[:lower:]')
 TMPDIR = $(CURDIR)/tmp
 NOMAD_ADDR = http://localhost:4646
+DARWIN_IP=$(shell ifconfig en0 | grep inet | grep -v inet6 | cut -d ' ' -f2 )
+LINUX_IP=$(shell ifconfig eno1 | grep inet | grep -v inet6 | cut -d ' ' -f2 )
 
 .PHONY: start-consul
 start-consul:
@@ -26,13 +28,13 @@ start-nomad:
 	mkdir -p $(TMPDIR)/nomad-data/alloc
 ifeq ($(OS), darwin)
 	nomad agent -dev \
-	-consul-address '10.0.0.76:8500'  \
+	-consul-address '$(DARWIN_IP):8500' \
 	-network-interface '{{GetDefaultInterfaces | attr "name"}}' \
 	-data-dir=$(TMPDIR)/nomad-data \
 	-bind 0.0.0.0
 else
 	sudo nomad agent -dev \
-	-consul-address '10.0.0.76:8500'  \
+	-consul-address '$(LINUX_IP):8500' \
 	-network-interface '{{GetDefaultInterfaces | attr "name"}}' \
 	-data-dir=$(TMPDIR)/nomad-data \
 	-bind 0.0.0.0
@@ -48,21 +50,29 @@ stop-nomad:
 
 .PHONY: run-traefik
 run-traefik:
-	NOMAD_ADDR=http://10.0.0.76:4646 nomad run traefik.nomad.hcl
+	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -var="consul_address=${DARWIN_IP}" traefik.nomad.hcl
 
 .PHONY: run-webapp-v1
 run-webapp-v1:
-	NOMAD_ADDR=http://10.0.0.76:4646 nomad run webapp.nomad.v1.hcl
+	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run webapp.nomad.v1.hcl
 
 .PHONY: run-webapp-v2
 run-webapp-v2:
-	NOMAD_ADDR=http://10.0.0.76:4646 nomad run webapp.nomad.v2.hcl
+	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run webapp.nomad.v2.hcl
 
 .PHONY: run-webapp-v3
 run-webapp-v3:
-	NOMAD_ADDR=http://10.0.0.76:4646 nomad run webapp.nomad.v3.hcl
+	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run webapp.nomad.v3.hcl
 
-.PHONY:build-webapp 
+.PHONY: curl
+curl:
+	@echo "Curl'ing webapp endpoint"
+	@while true; do \
+		curl http://${DARWIN_IP}:8080/myapp; \
+	    sleep 2; \
+	    done 
+
+.PHONY:build-webapp
 build-webapp:
 	@cd demo-webapp && docker buildx build --build-arg DOCKER_TAG=v1 -t "${WEBAPP_IMAGE}:v1" --platform linux/amd64,linux/arm64 --push .
 	@cd demo-webapp && docker buildx build --build-arg DOCKER_TAG=v2 -t "${WEBAPP_IMAGE}:v2" --platform linux/amd64,linux/arm64 --push .

@@ -1,3 +1,7 @@
+variable "consul_address" {
+  type        = string
+  description = "The address of the consul server."
+}
 
 job "traefik" {
   region      = "global"
@@ -12,7 +16,7 @@ job "traefik" {
         static = 8080
       }
 
-      port "api" {
+      port "traefik" {
         static = 8081
       }
     }
@@ -35,7 +39,7 @@ job "traefik" {
 
       config {
         image        = "traefik:v2.2"
-        network_mode = "host"
+        ports = ["http", "traefik"]
 
         volumes = [
           "local/traefik.toml:/etc/traefik/traefik.toml",
@@ -60,7 +64,8 @@ job "traefik" {
     exposedByDefault = false
 
     [providers.consulCatalog.endpoint]
-      address = "http://10.0.0.76:8500"
+      address = "${var.consul_address}:8500"
+      scheme = "http"
 EOF
 
         destination = "local/traefik.toml"

@@ -21,8 +21,15 @@ job "demo-webapp" {
       name = "demo-webapp"
       port = "http"
 
+      canary_tags = [
+        "v2",
+        "traefik.consulcatalog.canary=true",
+      ]
+
       tags = [
+        "webapp",
         "traefik.enable=true",
+        "traefik.consulcatalog.connect=true",
         "traefik.http.routers.http.rule=Path(`/myapp`)",
       ]
 
