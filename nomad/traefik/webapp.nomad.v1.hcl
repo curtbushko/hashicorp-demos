@@ -7,7 +7,7 @@ job "demo-webapp" {
 
     update {
       max_parallel     = 1
-      canary           = 3
+      canary           = 1
       auto_revert      = true
       auto_promote     = false
     }
@@ -27,6 +27,14 @@ job "demo-webapp" {
         "traefik.http.routers.http.rule=Path(`/myapp`)",
       ]
 
+
+      canary_tags = [
+        "traefik.enable=true",
+        "traefik.http.routers.http.rule=Path(`/myapp`)",
+        "traefik.nomad.canary=true",
+        "traefik.frontend.rule=Headers: Canary,true",
+      ]
+
       check {
         type     = "http"
         path     = "/"
@@ -42,7 +50,7 @@ job "demo-webapp" {
         NODE_IP = "${NOMAD_IP_http}"
       }
       config {
-        image = "ghcr.io/curtbushko/demo-webapp:v1"
+        image = "ghcr.io/curtbushko/demo-webapp:v2"
         ports = ["http"]
       }
     }
