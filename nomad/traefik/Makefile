@@ -3,12 +3,15 @@ OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 HOSTNAME := $(shell hostname |tr '[:upper:]' '[:lower:]')
 TMPDIR = $(CURDIR)/tmp
 NOMAD_ADDR = http://localhost:4646
-DARWIN_IP=$(shell ifconfig en0 | grep inet | grep -v inet6 | cut -d ' ' -f2 )
-LINUX_IP=$(shell ifconfig eno1 | grep inet | grep -v inet6 | cut -d ' ' -f2 )
-IP=$(shell route -n get default | grep "interface:" | cut -d ' ' -f4 | xargs -n1 ipconfig getifaddr)
+DARWIN_IP=$(shell route -n get default | grep "interface:" | cut -d ' ' -f4 | xargs -n1 ipconfig getifaddr)
+LINUX_IP=$(shell route | grep '^default' | tr -s ' ' | cut -d ' ' -f8 | xargs ifconfig |grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
 
 getip:
-	@echo "IP address: $(IP)"
+ifeq ($(OS), darwin)
+	@echo "$(DARWIN_IP)"
+else
+	@echo "$(LINUX_IP)"
+endif
 
 .PHONY: start-consul
 start-consul:
