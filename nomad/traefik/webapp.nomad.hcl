@@ -30,10 +30,7 @@ job "demo-webapp" {
         "traefik.enable=true",
         "traefik.http.routers.http.rule=Path(`/myapp`)",
       ]
-
-      canary_tags = [
-        "traefik.enable=false",
-      ]
+      canary_tags = ["none"] # Any random tag is needed for nomad to work correctly
 
       check {
         type     = "http"
@@ -46,13 +43,11 @@ job "demo-webapp" {
     service {
       name = "demo-webapp-canary"
       port = "http"
-
       tags = []
-
       canary_tags = [
         "traefik.enable=true",
-        "traefik.http.routers.http.rule=Path(`/myapp`)",
-        "traefik.http.routers.http.rule=Header(`X-Canary`, `true`)",
+        "traefik.http.routers.http_canary.rule=Path(`/myapp`)",
+        "traefik.http.routers.http_canary.rule=Header(`canary`,`true`)",
       ]
 
       check {

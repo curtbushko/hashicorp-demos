@@ -83,7 +83,7 @@ curl:
 canary-curl:
 	@echo "Canary curl'ing webapp endpoint"
 	@while true; do \
-		curl http://${DARWIN_IP}:8080/myapp -H 'Canary: true'; \
+		curl http://${DARWIN_IP}:8080/myapp -H 'canary: true'; \
 	    sleep 2; \
 	    done 
 
