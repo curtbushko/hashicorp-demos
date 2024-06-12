@@ -61,15 +61,15 @@ run-traefik:
 
 .PHONY: run-webapp-v1
 run-webapp-v1:
-	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run webapp.nomad.v1.hcl
+	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -var="tag=v1" webapp.nomad.hcl
 
 .PHONY: run-webapp-v2
 run-webapp-v2:
-	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run webapp.nomad.v2.hcl
+	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -var="tag=v2" webapp.nomad.hcl
 
 .PHONY: run-webapp-v3
 run-webapp-v3:
-	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run webapp.nomad.v3.hcl
+	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -var="tag=v3" webapp.nomad.hcl
 
 .PHONY: curl
 curl:
@@ -78,6 +78,15 @@ curl:
 		curl http://${DARWIN_IP}:8080/myapp; \
 	    sleep 2; \
 	    done 
+
+.PHONY: canary-curl
+canary-curl:
+	@echo "Canary curl'ing webapp endpoint"
+	@while true; do \
+		curl http://${DARWIN_IP}:8080/myapp -H 'Canary: true'; \
+	    sleep 2; \
+	    done 
+
 
 .PHONY:build-webapp
 build-webapp:

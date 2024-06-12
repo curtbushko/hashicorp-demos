@@ -1,3 +1,8 @@
+variable "tag" {
+  type        = string
+  description = "Image tag version, v1, v2, v3 are valid"
+}
+
 job "demo-webapp" {
   datacenters = ["dc1"]
 
@@ -6,13 +11,13 @@ job "demo-webapp" {
 
     update {
       max_parallel     = 1
-      canary           = 3
+      canary           = 1
       auto_revert      = true
       auto_promote     = false
     }
 
     network {
-      port  "http"{
+      port  "http" {
         to = -1
       }
     }
@@ -21,16 +26,33 @@ job "demo-webapp" {
       name = "demo-webapp"
       port = "http"
 
-      canary_tags = [
-        "v2",
-        "traefik.consulcatalog.canary=true",
+      tags = [
+        "traefik.enable=true",
+        "traefik.http.routers.http.rule=Path(`/myapp`)",
       ]
 
-      tags = [
-        "webapp",
+      canary_tags = [
+        "traefik.enable=false",
+      ]
+
+      check {
+        type     = "http"
+        path     = "/"
+        interval = "2s"
+        timeout  = "2s"
+      }
+    }
+
+    service {
+      name = "demo-webapp-canary"
+      port = "http"
+
+      tags = []
+
+      canary_tags = [
         "traefik.enable=true",
-        "traefik.consulcatalog.connect=true",
         "traefik.http.routers.http.rule=Path(`/myapp`)",
+        "traefik.http.routers.http.rule=Header(`X-Canary`, `true`)",
       ]
 
       check {
@@ -48,7 +70,7 @@ job "demo-webapp" {
         NODE_IP = "${NOMAD_IP_http}"
       }
       config {
-        image = "ghcr.io/curtbushko/demo-webapp:v2"
+        image = "ghcr.io/curtbushko/demo-webapp:${var.tag}"
         ports = ["http"]
       }
     }
