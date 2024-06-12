@@ -1,3 +1,6 @@
+variables {
+  task_image = "ghcr.io/curtbushko/demo-webapp:v2"
+}
 
 job "demo-webapp" {
   datacenters = ["dc1"]
@@ -25,14 +28,14 @@ job "demo-webapp" {
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.http.rule=Path(`/myapp`)",
+        "traefik.http.routers.http.rule=Header(`X-Canary`, `true`)",
       ]
-
 
       canary_tags = [
         "traefik.enable=true",
         "traefik.http.routers.http.rule=Path(`/myapp`)",
+        "traefik.http.routers.http.rule=Header(`X-Canary`, `true`)",
         "traefik.nomad.canary=true",
-        "traefik.frontend.rule=Headers: Canary,true",
       ]
 
       check {
@@ -43,6 +46,25 @@ job "demo-webapp" {
       }
     }
 
+#    service {
+#      name = "canary"
+#      port = "http"
+#
+#      canary_tags = [
+#        "traefik.enable=true",
+#        "traefik.http.routers.http.rule=Path(`/myapp`)",
+#        "traefik.http.routers.http.rule=Header(`X-Canary`, `false`)",
+#        "traefik.nomad.canary=true",
+#      ]
+#
+#      check {
+#        type     = "http"
+#        path     = "/"
+#        interval = "2s"
+#        timeout  = "2s"
+#      }
+#    }
+
     task "server" {
       driver = "docker"
       env {
@@ -50,7 +72,7 @@ job "demo-webapp" {
         NODE_IP = "${NOMAD_IP_http}"
       }
       config {
-        image = "ghcr.io/curtbushko/demo-webapp:v2"
+        image = var.task_image
         ports = ["http"]
       }
     }
