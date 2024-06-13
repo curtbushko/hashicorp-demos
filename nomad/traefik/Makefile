@@ -76,7 +76,7 @@ run-webapp-v3:
 curl:
 	@echo "Curl'ing webapp endpoint"
 	@while true; do \
-		curl http://${DARWIN_IP}:8080/myapp; \
+		curl --connect-timeout 1 http://${DARWIN_IP}:8080/myapp; \
 	    sleep 2; \
 	    done 
 
@@ -84,7 +84,7 @@ curl:
 canary-curl:
 	@echo "Canary curl'ing webapp endpoint"
 	@while true; do \
-		curl http://${DARWIN_IP}:8080/myapp -H 'canary: true'; \
+		curl --connect-timeout 1 http://${DARWIN_IP}:8080/myapp -H 'canary: true'; \
 	    sleep 2; \
 	    done 
 

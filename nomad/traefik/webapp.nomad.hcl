@@ -55,6 +55,9 @@ job "demo-webapp" {
         image = "ghcr.io/curtbushko/demo-webapp:${var.tag}"
         ports = ["http"]
       }
+      # A delay allows the service to be deregistered before the task is killed.
+      # Addresses gateway timeouts when hammering the server
+      shutdown_delay = "10s"
     }
   }
 }
