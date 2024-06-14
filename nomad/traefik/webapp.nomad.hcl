@@ -27,27 +27,15 @@ job "demo-webapp" {
       port = "http"
 
       tags = [
+        "tag=${var.tag}",
         "traefik.enable=true",
-        "traefik.http.routers.http.rule=Path(`/myapp`)",
+        "traefik.http.routers.demo-webapp.rule=Path(`/myapp`)",
       ]
-      canary_tags = ["none"] # Any random tag is needed for nomad to work correctly
-
-      check {
-        type     = "http"
-        path     = "/"
-        interval = "2s"
-        timeout  = "2s"
-      }
-    }
-
-    service {
-      name = "demo-webapp-canary"
-      port = "http"
-      tags = []
       canary_tags = [
+        "tag=${var.tag}",
         "traefik.enable=true",
-        "traefik.http.routers.http_canary.rule=Path(`/myapp`)",
-        "traefik.http.routers.http_canary.rule=Header(`canary`,`true`)",
+        "traefik.http.routers.demo-webapp-canary.rule=Path(`/myapp`) && Header(`canary`,`true`)",
+        "traefik.consulcatalog.canary=true",
       ]
 
       check {
@@ -57,7 +45,6 @@ job "demo-webapp" {
         timeout  = "2s"
       }
     }
-
     task "server" {
       driver = "docker"
       env {
@@ -68,6 +55,9 @@ job "demo-webapp" {
         image = "ghcr.io/curtbushko/demo-webapp:${var.tag}"
         ports = ["http"]
       }
+      # A delay allows the service to be deregistered before the task is killed.
+      # Addresses gateway timeouts when hammering the server
+      shutdown_delay = "10s"
     }
   }
 }

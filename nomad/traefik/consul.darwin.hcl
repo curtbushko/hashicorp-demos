@@ -4,9 +4,9 @@ node_name = "host01"
 bind_addr = "0.0.0.0"
 
 addresses {
-    http = "{{ GetInterfaceIP \"en0\" }} {{ GetInterfaceIP \"lo0\" }}"
-    https = "{{ GetInterfaceIP \"en0\" }} {{ GetInterfaceIP \"lo0\" }}"
-    grpc = "{{ GetInterfaceIP \"en0\" }}"
+  http = "0.0.0.0"
+  https = "0.0.0.0"
+  grpc = "0.0.0.0"
 }
 
 advertise_addr = "{{ GetInterfaceIP \"en0\" }}"

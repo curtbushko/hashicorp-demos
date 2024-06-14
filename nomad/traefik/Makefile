@@ -30,6 +30,7 @@ stop-consul:
 
 .PHONY: start-nomad
 start-nomad:
+	@curl -i --silent --fail http://localhost:8500/v1/status/leader 1> /dev/null || (echo "Consul not running, please start consul first" && exit 1)
 	@echo "Starting local Nomad"
 	rm -rf $(TMPDIR)/nomad-data
 	mkdir -p $(TMPDIR)/nomad-data/alloc
@@ -57,7 +58,7 @@ stop-nomad:
 
 .PHONY: run-traefik
 run-traefik:
-	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -var="consul_address=${DARWIN_IP}" traefik.nomad.hcl
+	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -var="consul_address=host.docker.internal" traefik.nomad.hcl
 
 .PHONY: run-webapp-v1
 run-webapp-v1:
@@ -152,4 +153,3 @@ build-webapp:
 	@cd demo-webapp && docker buildx build --build-arg DOCKER_TAG=v1 -t "${WEBAPP_IMAGE}:v1" --platform linux/amd64,linux/arm64 --push .
 	@cd demo-webapp && docker buildx build --build-arg DOCKER_TAG=v2 -t "${WEBAPP_IMAGE}:v2" --platform linux/amd64,linux/arm64 --push .
 	@cd demo-webapp && docker buildx build --build-arg DOCKER_TAG=v3 -t "${WEBAPP_IMAGE}:v3" --platform linux/amd64,linux/arm64 --push .
-
