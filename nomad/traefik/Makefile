@@ -56,20 +56,20 @@ stop-nomad:
 	@echo "Listing running nomad (should not show anything)"
 	@ps -ef | grep 'nomad' | grep -v grep || true
 
-.PHONY: run-traefik
-run-traefik:
+.PHONY: start-traefik
+start-traefik:
 	NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -var="consul_address=host.docker.internal" traefik.nomad.hcl
 
-.PHONY: run-webapp-v1
-run-webapp-v1:
+.PHONY: start-webapp-v1
+start-webapp-v1:
 	@NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -detach -var="tag=v1" webapp.nomad.hcl
 
-.PHONY: run-webapp-v2
-run-webapp-v2:
+.PHONY: start-webapp-v2
+start-webapp-v2:
 	@NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -detach -var="tag=v2" webapp.nomad.hcl
 
-.PHONY: run-webapp-v3
-run-webapp-v3:
+.PHONY: start-webapp-v3
+start-webapp-v3:
 	@NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -detach -var="tag=v3" webapp.nomad.hcl
 
 .PHONY: curl
@@ -101,15 +101,24 @@ promote:
 purge:
 	@nomad job stop -detach -purge demo-webapp || true
 
+.PHONY: demo-header
+demo-header:
+	@echo "Canary deploys in a local setup. \n\n \
+In this demo we start with a consul and nomad clusters with only traefik running for load balancing. \n \
+We will: \n \
+1) Deploy a v1 demo-webapp and send traffic to it using curl to verify that it is working. \n \
+2) Canary deploy a v2 version of the demo-webapp. \n \
+3) Send the same curl as above and it should only show traffic going to the v1 demo-webapp. \n \
+4) In order to send traffic to the v2 demo-webapp we will need to use a header (-H canary: true). \n \
+5) Curl the v2 demo-webapp with a header. \n\n \
+  This shows us traffic splitting. Normal traffic goes to v1 demo-webapp while specific canary traffic goes to v2 demo-webapp. \n\n \
+6) We then promote the canary deployment manually and the demo-webapp becomes v2. \n \
+7) Curl the demo-webapp to show that it is now 'v2' \n \
+" | gum style --border normal --margin "1" --padding "2 2" --border-foreground=#E03875
+
 .PHONY: demo
 demo:
-	@echo "Canary deploys in a local setup. \n\n \
-In this demo we start with a nomad cluster with only traefik running for load balancing. We then deploy a v1 demo webapp and send traffic to it using curl to verify that it is working. \n \
-We then canary deploy a v2 version of the demo web app. We curl and it should only show traffic going to the v1 webapp. \n \
-To send traffic to the v2 webapp we will need to use a header (canary: true). \n\n \
-This shows us traffic splitting. Normal traffic goes to v1 demoapp while specific canary traffic goes to v2 demoapp. \n \
-We then promote the canary deployment manually and the demo webapp becomes v2. \n \
-" | gum style --border normal --margin "1" --padding "2 2" --border-foreground=#E03875
+	@make demo-header
 	@sleep 7
 
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "What jobs does nomad have running? Should only show traefik. $(shell gum style --foreground=#00CA8E '(command: nomad job status)')" --show-output -- sleep 2
@@ -117,7 +126,7 @@ We then promote the canary deployment manually and the demo webapp becomes v2. \
 	@nomad job status | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
 
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Deploy $(shell gum style --foreground=#00CA8E 'v1') of demo app. Takes a bit of time... $(shell gum style --foreground=#00CA8E '(command: nomad run -detach -var="tag=v1" webapp.nomad.hcl)')" --show-output -- sleep 2
-	@make run-webapp-v1 | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
+	@make start-webapp-v1 | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
 	@sleep 12
 
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Check job status. Should show 2 jobs. $(shell gum style --foreground=#00CA8E '(command: nomad job status demo-webapp)')" --show-output -- sleep 2
@@ -127,7 +136,7 @@ We then promote the canary deployment manually and the demo webapp becomes v2. \
 	@make curl
 
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Deploy $(shell gum style --foreground=#00CA8E 'v2') of demo app. $(shell gum style --foreground=#00CA8E '(command: nomad run -detach -var="tag=v2" webapp.nomad.hcl)')" --show-output -- sleep 2
-	@make run-webapp-v2 | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
+	@make start-webapp-v2 | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
 	@sleep 5
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Check job status. $(shell gum style --foreground=#00CA8E '(command: nomad job status demo-webapp)')" --show-output -- sleep 5
 	@nomad job status | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
@@ -140,7 +149,7 @@ We then promote the canary deployment manually and the demo webapp becomes v2. \
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Notice how traffic is now splitting between two containers." --show-output -- sleep 5
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Promote the $(shell gum style --foreground=#00CA8E 'v2') canary deploy. The v1 container should go away while v2 takes its place. $(shell gum style --foreground=#00CA8E '(command: nomad job promote demo-webapp)')" --show-output -- sleep 2
 	@make promote | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
-	@sleep 10
+	@sleep 13
 
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Curl $(shell gum style --foreground=#00CA8E 'v1') endpoint. Should return welcome v2 message. $(shell gum style --foreground=#FFD814 '(command: curl http://<local ip>:8080/myapp)')" --show-output -- sleep 2
 	@make curl

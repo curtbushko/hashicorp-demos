@@ -17,12 +17,12 @@ Traefix is bound to http://localhost:8081 (for admin) and http://localhost:8080 
 
 Launch webapp
 ```shell
-make run-webapp-v1
+make start-webapp-v1
 ```
 Note: launching the same version will be automatically updated! 
 
 ```shell
-make run-webapp-v2
+make start-webapp-v2
 ```
 
 Decision:
@@ -30,3 +30,9 @@ Decision:
 nomad deployment promote <deployment id>
 nomad deployment fail <deployment id>
 ```
+
+# FAQ
+
+- Q: Containers are starting with IPv6 addresses on Mac.
+- A: Your mac is returning what it things is the default ip address for your wireless network interface. To fix, System
+  Settings -> Search for 'ipv6' -> Click on IPv6 -> TCPIP -> Configure IPv6 -> Change to 'Link-local Only'.
