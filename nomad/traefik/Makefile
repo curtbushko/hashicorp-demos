@@ -94,8 +94,8 @@ canary-curl:
 
 .PHONY: promote
 promote:
-	@nomad job promote -detach demo-webapp || true
-
+	#@nomad job promote -detach demo-webapp || true
+	@NOMAD_ADDR=http://${DARWIN_IP}:4646 nomad run -detach -var="tag=v2" -var="promote=true" webapp.nomad.hcl
 
 .PHONY: purge
 purge:
@@ -137,9 +137,7 @@ demo:
 
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Deploy $(shell gum style --foreground=#00CA8E 'v2') of demo app. $(shell gum style --foreground=#00CA8E '(command: nomad run -detach -var="tag=v2" webapp.nomad.hcl)')" --show-output -- sleep 2
 	@make start-webapp-v2 | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
-	@sleep 5
-	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Check job status. $(shell gum style --foreground=#00CA8E '(command: nomad job status demo-webapp)')" --show-output -- sleep 5
-	@nomad job status | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
+	@sleep 6
 
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Curl $(shell gum style --foreground=#00CA8E 'v1') endpoint. Should show welcome v1 message as traffic is going to the original v1 container. $(shell gum style --foreground=#FFD814 '(command: curl http://<local ip>:8080/myapp)')" --show-output -- sleep 2
 	@make curl
@@ -149,11 +147,11 @@ demo:
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Notice how traffic is now splitting between two containers." --show-output -- sleep 5
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Promote the $(shell gum style --foreground=#00CA8E 'v2') canary deploy. The v1 container should go away while v2 takes its place. $(shell gum style --foreground=#00CA8E '(command: nomad job promote demo-webapp)')" --show-output -- sleep 2
 	@make promote | gum style --border normal --margin "1" --padding "1 1" --border-foreground=#00CA8E
-	@sleep 13
+	@sleep 6
 
-	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Curl $(shell gum style --foreground=#00CA8E 'v1') endpoint. Should return welcome v2 message. $(shell gum style --foreground=#FFD814 '(command: curl http://<local ip>:8080/myapp)')" --show-output -- sleep 2
+	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Curl $(shell gum style --foreground=#00CA8E 'v1') endpoint. Might return BAD GATEWAY as the v1 container is deleted. Should shift from v1 to welcome v2 message. $(shell gum style --foreground=#FFD814 '(command: curl http://<local ip>:8080/myapp)')" --show-output -- sleep 2
 	@make curl
-	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Curl $(shell gum style --foreground=#00CA8E 'v2') endpoint with Header. Should return welcome v2 message as only the v2 container exists now. $(shell gum style --foreground=#FFD814 '(command: curl http://<local ip>:8080/myapp -H 'canary: true')')" --show-output -- sleep 2
+	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Curl $(shell gum style --foreground=#00CA8E 'v2') endpoint with Header. Might return BAD GATEWAY as v1 containers are replaced. Should return v2 message. $(shell gum style --foreground=#FFD814 '(command: curl http://<local ip>:8080/myapp -H 'canary: true')')" --show-output -- sleep 5
 	@make canary-curl
 	@gum spin --spinner dot --spinner.foreground=#E03875 --title "Fini." --show-output -- sleep 5
 

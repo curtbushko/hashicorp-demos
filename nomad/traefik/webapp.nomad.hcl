@@ -3,17 +3,23 @@ variable "tag" {
   description = "Image tag version, v1, v2, v3 are valid"
 }
 
+variable "promote" {
+  type        = bool
+  default = false
+  description = "Whether to auto promote or not"
+}
+
 job "demo-webapp" {
   datacenters = ["dc1"]
 
   group "demo" {
-    count = 3
+    count = 2
 
     update {
       max_parallel     = 1
       canary           = 1
       auto_revert      = true
-      auto_promote     = false
+      auto_promote     = "${var.promote}"
     }
 
     network {
