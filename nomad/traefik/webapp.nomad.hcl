@@ -34,14 +34,26 @@ job "demo-webapp" {
 
       tags = [
         "tag=${var.tag}",
+        "traefik.hcp.name=myapp",
         "traefik.enable=true",
-        "traefik.http.routers.demo-webapp.rule=Path(`/myapp`)",
+        "traefik.http.routers.${NOMAD_JOB_ID}.priority=10",
+        "traefik.http.services.${NOMAD_JOB_ID}.loadbalancer.server.weight=5",
       ]
       canary_tags = [
         "tag=${var.tag}",
         "traefik.enable=true",
-        "traefik.http.routers.demo-webapp-canary.rule=Path(`/myapp`) && Header(`canary`,`true`)",
+        "traefik.hcp.name=myapp",
+        # Setting canary creates a temporary router for this service.
+        # e.g. `${NOMAD_JOB_ID}-4989265017458556597`
         "traefik.consulcatalog.canary=true",
+
+        # To add canary to stable cluster routing and receive % of traffic, add:
+#         # LB_WRR(canary, stable)
+#         "traefik.http.services.${NOMAD_JOB_ID}.loadbalancer.server.weight=50",
+#         # LV_WRR(canary)
+#         "traefik.http.routers.${NOMAD_JOB_ID}-canary.priority=50",
+#         "traefik.http.routers.${NOMAD_JOB_ID}-canary.service=${NOMAD_JOB_ID}-canary",
+#         "traefik.http.services.${NOMAD_JOB_ID}-canary.loadbalancer.server.weight=50",
       ]
 
       check {

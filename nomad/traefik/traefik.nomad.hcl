@@ -48,6 +48,8 @@ job "traefik" {
 
       template {
         data = <<EOF
+[log]
+  level = "DEBUG"
 [entryPoints]
     [entryPoints.http]
     address = ":8080"
@@ -62,10 +64,20 @@ job "traefik" {
 [providers.consulCatalog]
     prefix           = "traefik"
     exposedByDefault = false
+    # Adds `traefik.hcp.name` sourced from: https://github.com/hashicorp/cloud-traefik/blob/main/nomad/traefik.nomad#L401-L407
+    # Beware. Typos kill the provider, but not Traefik daemon itself.
+    # Also, `foo\n && bar` is a syntax error, where as `foo && \nbar` is not.
+    defaultRule      = """\
+      PathPrefix(`/{{"{{"}} default (normalize .Name) (index .Labels "traefik.hcp.name") {{"}}"}}`)\
+        {{"{{"}} if default false (index .Labels "traefik.consulcatalog.canary") {{"}}"}} \
+            && Header(`canary`,`true`)\
+        {{"{{"}}end{{"}}"}}\
+    """
 
     [providers.consulCatalog.endpoint]
       address = "${var.consul_address}:8500"
       scheme = "http"
+
 EOF
 
         destination = "local/traefik.toml"
