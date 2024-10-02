@@ -52,9 +52,10 @@ endif
 .PHONY: stop-nomad
 stop-nomad:
 	@echo "Stopping nomad"
-	kill -9 $(shell ps -ef | grep 'nomad' | grep -v grep | cut -d' ' -f4)
-	@echo "Listing running nomad (should not show anything)"
-	@ps -ef | grep 'nomad' | grep -v grep || true
+	@pkill -SIGINT -l -f 'nomad agent -dev'
+	@echo "Waiting for nomad to drain all tasks and exit..."
+	@timeout 13s bash -c "while pkill -0 -f 'nomad agent -dev' 2> /dev/null; do sleep 1; done" || \
+		(echo "Nomad did not shutdown in time, hard killing it. Tasks may still be running!" >&2 && pkill -SIGKILL -f 'nomad agent -dev')
 
 .PHONY: start-traefik
 start-traefik:
