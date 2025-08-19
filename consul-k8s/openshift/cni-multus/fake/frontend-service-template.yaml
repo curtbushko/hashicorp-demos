@@ -1,0 +1,131 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend
+  namespace: fake
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: fake
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: "9090"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: fake
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      name: frontend
+      namespace: fake
+      labels:
+        app: frontend
+      annotations:
+        'consul.hashicorp.com/enable-metrics': 'true'
+        'consul.hashicorp.com/enable-metrics-merging': 'true'
+        'consul.hashicorp.com/connect-inject': 'true'
+        'consul.hashicorp.com/transparent-proxy': 'true'
+        'consul.hashicorp.com/transparent-proxy-exclude-outbound-ports': '443'
+        'consul.hashicorp.com/transparent-proxy-overwrite-probes': 'true'
+        'consul.hashicorp.com/prometheus-scrape-port': '20200'
+        'consul.hashicorp.com/prometheus-scrape-path': '/metrics'
+        'consul.hashicorp.com/merged-metrics-port': '20100'
+        'consul.hashicorp.com/merged-metrics-path': '/stats/prometheus'
+        'consul.hashicorp.com/service-metrics-port': '9090'
+        'consul.hashicorp.com/service-metrics-path': '/metrics'
+        'metrics.dynatrace.com/scrape': 'true'
+        'metrics.dynatrace.com/port': '20200'
+        'metrics.dynatrace.com/path': '/metrics'
+        'metrics.dynatrace.com/secure': 'false'
+#        'ad.datadoghq.com/tolerate-unready': "true"
+#        'ad.datadoghq.com/frontend.tags': '{"service": "frontend"}'
+#        'ad.datadoghq.com/consul-dataplane.tags': '{"service":"consul-dataplane"}'
+#        'ad.datadoghq.com/consul-dataplane.logs': '["source:envoy", "service:consul-dataplane"]'
+#        'ad.datadoghq.com/consul-dataplane.checks': |
+#          {
+#            "envoy": {
+#              "init_config": {},
+#              "instances": [
+#                {
+#                  "openmetrics_endpoint": "http://%%host%%:20200/metrics",
+#                  "namespace": "consul",
+#                  "metrics": [ ".*" ]
+#                },{
+#                  "openmetrics_endpoint": "http://%%host%%:21200/stats",
+#                  "namespace": "consul",
+#                  "metrics": [ ".*" ]
+#                }
+#              ]
+#            }
+#          }
+        'k8s.v1.cni.cncf.io/networks': '[{ "name":"consul-cni" }]'
+    spec:
+      serviceAccountName: frontend
+      containers:
+        - name: frontend
+          image: nicholasjackson/fake-service:v0.26.0
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 2Gi
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NAME
+              value: "frontend-service"
+            - name: MESSAGE
+              value: "FRONTEND FRONTEND FRONTEND FRONTEND"
+            - name: LOG_LEVEL
+              value: trace
+            - name: LISTEN_ADDR
+              value: 127.0.0.1:9090
+            - name: UPSTREAM_URIS
+              value: "http://backend.consul.svc.cluster.local"
+          ports:
+            - containerPort: 9090
+              name: http
+              protocol: TCP
+#          securityContext:
+#            privileged: true
+#            runAsUser: 0
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 9090
+            initialDelaySeconds: 5
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9090
+            initialDelaySeconds: 10
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 10
+            failureThreshold: 2
+            periodSeconds: 5

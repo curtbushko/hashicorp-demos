@@ -1,11 +1,18 @@
-HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/NET-4414/anyuid-openshift
-K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/NET-4414/anyuid-openshift
-ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/NET-4414/anyuid-openshift
+#HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/NET-4414/anyuid-openshift
+HELM_CHART_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/release/1.4.x
+#$K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/NET-4414/anyuid-openshift
+K8S_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/release/1.4.x
+#ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/NET-4414/anyuid-openshift
+ACCEPTANCE_DIR=$(HOME)/workspace/github.com/hashicorp/consul-k8s/release/1.4.x
 DOCKERHUB=curtbushko
 GIT_REV=$(shell cd $(K8S_DIR) && git rev-parse --short HEAD)
 CONSUL_K8S_IMAGE=consul-k8s-control-plane-dev:$(GIT_REV)
-CONSUL_IMAGE=hashicorp/consul:1.18.0-ubi
-CONSUL_DATAPLANE_IMAGE=hashicorp/consul-dataplane:1.4.0-ubi
+#CONSUL_IMAGE=hashicorp/consul:1.18.0-ubi
+#CONSUL_IMAGE=registry.connect.redhat.com/hashicorp/consul-enterprise:1.18.2-ent-ubi
+CONSUL_IMAGE=hashicorp/consul-enterprise:1.18.2-ent-ubi
+#CONSUL_DATAPLANE_IMAGE=hashicorp/consul-dataplane:1.4.0-ubi
+#CONSUL_DATAPLANE_IMAGE=registry.connect.redhat.com/hashicorp/consul-dataplane:1.4.2-ubi
+CONSUL_DATAPLANE_IMAGE=hashicorp/consul-dataplane:1.4.2-ubi
 GOLANG_VERSION?=$(shell cd $(K8S_DIR) && head -n 1 .go-version)
 CURRENT_CONTEXT?=$(shell kubectl config current-context)
 
@@ -13,6 +20,10 @@ CUR_DIR=$(shell pwd)
 
 rev:
 	echo "Gitrev: $(GIT_REV)"
+
+pull:
+	@docker pull $(CONSUL_IMAGE)
+	@docker pull $(CONSUL_DATAPLANE_IMAGE)
 
 build:
 	touch $(K8S_DIR)/control-plane/LICENSE
@@ -30,31 +41,60 @@ build:
 	rm $(K8S_DIR)/control-plane/LICENSE
 
 start:
-	@crc start -m 18432
+	@echo "Starting crc:"
+	@crc start -m 16384 -c 8 ||true
 
 stop:
-	@crc stop
+	@echo "Stopping crc:"
+	@crc stop ||true
+
+delete:
+	@echo "Deleting crc instance:"
+	@crc delete -f ||true
+
+config:
+	@crc config set cpus 8
+	@crc config set memory 16384
+	@crc config set pull-secret-file ${HOME}/Downloads/pull-secret
 
 login:
 	@eval $(crc oc-env)
-	@echo "Login using the kubeadmin credentials below:"
-	@crc console --credentials
+	@echo "Login using the kubeadmin credentials:"
+	@crc console --credentials |grep 'kubeadmin' |cut -d \' -f2 |bash
+
+debug:
+	@echo "Running debug container to get into node:"
+	@oc debug node/crc
 
 create-pull-secret:
 	oc new-project consul || true
 	kubectl create secret generic openshift-pull-secret \
 		--from-file=.dockerconfigjson=${HOME}/Downloads/pull-secret \
 		--type=kubernetes.io/dockerconfigjson \
-		--namespace=default
+		--namespace=consul || true
 
-deploy-consul: create-pull-secret
+create-ent-license:
+	@kubectl create secret generic consul-ent-license --from-literal="key=$$CONSUL_ENT_LICENSE" -n consul || true
+
+deploy-consul: create-pull-secret create-ent-license
 	kubectl ns consul || true
 	cd $(HELM_CHART_DIR) && helm install consul -n consul -f $(CUR_DIR)/helm.values.yaml \
+		--set global.enterpriseLicense.secretName="consul-ent-license" \
+		--set global.enterpriseLicense.secretKey="key" \
 		--set global.imageK8S=$(DOCKERHUB)/$(CONSUL_K8S_IMAGE) \
 		--set global.image=$(CONSUL_IMAGE) \
 		--set global.imageConsulDataplane=$(CONSUL_DATAPLANE_IMAGE) \
 		--set fullnameOverride=consul \
 		${K8S_DIR}/charts/consul
+
+deploy-fake:
+	kubectl create ns fake || true
+	kubectl ns fake || true
+	kubectl apply -f cni-networkattachmentdefinition.yaml || true
+	kubectl apply -f ./fake
+
+curl:
+	kubeclt exec 
 
 deploy-static:
 	kubectl create ns static || true
@@ -107,7 +147,6 @@ acceptance-api-gateway:
 		-consul-image "$(CONSUL_IMAGE)" \
 		-consul-dataplane-image "$(CONSUL_DATAPLANE_IMAGE)"
 
-
 podstatus:
 	kubectl get pods 
 
@@ -115,4 +154,5 @@ wait:
 	sleep 20
 
 all: deploy-consul wait deploy-static podstatus
+reset: stop delete wait start login deploy-consul wait wait deploy-fake
 

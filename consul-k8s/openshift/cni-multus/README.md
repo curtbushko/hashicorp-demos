@@ -16,6 +16,6 @@ Reference: [Install OpenShift on Azure](https://gist.github.com/david-yu/9a636d9
 - Run `crc setup` (this will take a while to download images)
 - Make sure to get a pull secret from Redhat. You need to register a personal account and [download](https://console.redhat.com/openshift/create/local) the pull secret. The Makefile assumes that you save the 'pull-secret' file to ~/Downloads.
 - Run `crc start` (this will take a while to start many operators)
-- Login `make login`
-- Add your pull secret to the cluster `make create-pull-secret`
+- Login `make login` to get login credentials and login as 'admin'
 - Build the consul-k8s image `make build`
+- Deploy consul with `make deploy-consul`

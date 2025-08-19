@@ -1,0 +1,25 @@
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: backend
+spec:
+  destination:
+    name: backend
+    namespace: fake
+  sources:
+    - name: frontend
+      namespace: fake
+      action: allow
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: frontend
+spec:
+  destination:
+    name: frontend
+    namespace: fake
+  sources:
+    - name: api-gateway
+      namespace: fake
+      action: allow

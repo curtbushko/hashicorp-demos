@@ -1,0 +1,121 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend
+  namespace: fake
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: fake
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 9191
+      targetPort: 9191
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: fake
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      name: backend
+      namespace: fake
+      labels:
+        app: backend
+      annotations:
+        'consul.hashicorp.com/connect-inject': 'true'
+        'consul.hashicorp.com/transparent-proxy': 'true'
+        'consul.hashicorp.com/enable-metrics-merging': 'true'
+        'consul.hashicorp.com/transparent-proxy-overwrite-probes': 'true'
+        # When metrics and metrics merging are both enabled, metrics are combined from the service and the sidecar proxy, and exposed
+        # through a local server on the Consul Dataplane sidecar for scraping. This endpoint is called the merged metrics endpoint and
+        # defaults to 127.0.0.1:20100/stats/prometheus. The listener targets the merged metrics endpoint in the above case. It can be
+        # configured with the following Helm values (or overridden on a per-Pod basis with consul.hashicorp.com/merged-metrics-port
+        'consul.hashicorp.com/merged-metrics-port': '20100' ## Defaults to consul.hashicorp.com/connect-service-port value (port used to register service)
+        'consul.hashicorp.com/merged-metrics-path': '/stats/prometheus'
+#        'metrics.dynatrace.com/scrape': 'true'
+#        'metrics.dynatrace.com/port': '20200'
+#        'metrics.dynatrace.com/path': '/metrics'
+#        'ad.datadoghq.com/tolerate-unready': "true"
+#        'ad.datadoghq.com/frontend.tags': '{"service": "backend"}'
+#        'ad.datadoghq.com/consul-dataplane.tags': '{"service":"consul-dataplane"}'
+#        'ad.datadoghq.com/consul-dataplane.logs': '["source:envoy", "service:consul-dataplane"]'
+#        'ad.datadoghq.com/consul-dataplane.checks': |
+#          {
+#            "envoy": {
+#              "init_config": {},
+#              "instances": [
+#                {
+#                  "openmetrics_endpoint": "http://%%host%%:20200/metrics",
+#                  "namespace": "consul",
+#                  "metrics": [ ".*" ]
+#                },{
+#                  "openmetrics_endpoint": "http://%%host%%:21200/stats",
+#                  "namespace": "consul",
+#                  "metrics": [ ".*" ]
+#                }
+#              ]
+#            }
+#          }
+        'k8s.v1.cni.cncf.io/networks': '[{ "name":"consul-cni" }]'
+    spec:
+      serviceAccountName: backend
+      containers:
+        - name: backend
+          image: nicholasjackson/fake-service:v0.26.0
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 2Gi
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: "NAME"
+              value: "backend-service"
+            - name: MESSAGE
+              value: "BACKEND BACKEND BACKEND BACKEND"
+            - name: LISTEN_ADDR
+              value: 127.0.0.1:9191
+          ports:
+            - containerPort: 9191
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9191
+            initialDelaySeconds: 10
+            failureThreshold: 5
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9191
+            initialDelaySeconds: 10
+            failureThreshold: 5
+            periodSeconds: 2
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 9191
+            initialDelaySeconds: 10
+            failureThreshold: 5
+            periodSeconds: 2
